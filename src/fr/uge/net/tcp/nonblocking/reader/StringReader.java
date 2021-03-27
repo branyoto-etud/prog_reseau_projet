@@ -8,20 +8,20 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * The reader can process a buffer to extract an integer (the {@code length} of the message)
- * followed by a string encoded in UTF8 with the given {@code length}.
+ * followed by a string encoded in UTF-8 with the given {@code length}.
  * Like so:
  * <pre>
- *   integer   string (utf8)
- * --------------------------
- * | length |     message   |
- * --------------------------</pre>
+ *   integer   string (utf-8)
+ * ----------------------------
+ * | length |     message     |
+ * ----------------------------</pre>
  * <br>
  * The {@code length} of the message cannot be greater than
  * {@link fr.uge.net.tcp.nonblocking.config.Config#BUFFER_SIZE}.
  *
  * The method {@link #process(ByteBuffer)} can be used to read a message until
- * it's return {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE}.
- * After that a call to {@link #get()} will return the processed message.
+ * it returns {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE}.
+ * After that, a call to {@link #get()} will return the processed message.
  * If you want to reuse this reader to process a new message you need to call {@link #reset()}.
  *
  * Use examples:
@@ -49,18 +49,18 @@ public class StringReader implements Reader<String> {
     private int length = -1;
 
     /**
-     * Process the buffer and extract the length (integer)
-     * and the message (encoded in UTF8).
+     * Processes the buffer and extracts the length (integer)
+     * and the message (encoded in UTF-8).
      * The returned value can be :
      * <ul><li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
      *     if the reader has not finished.
      * <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     if the length of the message is not between 1 and {@link fr.uge.net.tcp.nonblocking.config.Config#BUFFER_SIZE}.
      * <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the message if ready to be get.
+     *     if the message is ready to be get.
      *
      * @param bb the buffer where to read the data.
-     *           Must be in write-mode before and will be in write-mode after.
+     *           Must be in write-mode before being called and will be kept in write-mode after.
      * @return the current state of the reader.
      * @throws IllegalStateException if the buffer's state is not {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL}.
      * @throws NullPointerException if {@code bb} is null.
@@ -78,47 +78,47 @@ public class StringReader implements Reader<String> {
     }
 
     /**
-     * Same thing has {@link #process(ByteBuffer)} but without the invalid argument and state.
-     * This method does not update the state of the reader, it only return it.
+     * Same thing as {@link #process(ByteBuffer)} but without the invalid argument and state.
+     * This method does not update the state of the reader, it only returns it.
      *
-     * @param bb the buffer where to read the data. The buffer is in read mode before and after.
+     * @param bb the buffer where to read the data. The buffer is in read-mode before and after.
      * @return the current state of the reader.
      */
     private ProcessStatus subProcess(ByteBuffer bb) {
         if (length == -1) {                                                 // If the size has been read yet
-            if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;          // Try to fill buff and ask for refill if not full
-            length = buff.flip().getInt();                                  // Get the length of the message
-            if (length <= 0 || length > 1_024) return ProcessStatus.ERROR;  // Check if positive
-            buff.clear().limit(length);                                     // Set the inner buffer limit
+            if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;           // Tries to fill buff and asks for refill if not full
+            length = buff.flip().getInt();                                  // Gets the length of the message
+            if (length <= 0 || length > 1_024) return ProcessStatus.ERROR;  // Checks if positive
+            buff.clear().limit(length);                                     // Sets the inner buffer limit
         }
-        if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;              // Try to fill buff and ask for refill if not full
+        if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;               // Tries to fill buff and asks for refill if not full
 
-        message = UTF_8.decode(buff.flip()).toString();                     // Read the found string
-        buff.clear();                                                       // Reset buffer
-        return ProcessStatus.DONE;                                          // Validate the process
+        message = UTF_8.decode(buff.flip()).toString();                     // Reads the found string
+        buff.clear();                                                       // Resets buffer
+        return ProcessStatus.DONE;                                          // Validates the process
     }
 
     /**
-     * Fill {@link #buff} with the maximum that can be read from {@code bb}.
+     * Fills {@link #buff} with the maximum that can be read from {@code bb}.
      *
      * @param bb the input buffer. Must be in read-mode.
      * @return {@code true} the buffer is not full.
      */
     private boolean fillInnerBuffer(ByteBuffer bb) {
         if (bb.remaining()<=buff.remaining()){          // If the inner buffer capacity is greater than given buffer
-            buff.put(bb);                               // Read everything
+            buff.put(bb);                               // Reads everything
         } else {                                        // Otherwise
-            int oldLimit = bb.limit();                  // Remember the old limit
-            bb.limit(bb.position() + buff.remaining()); // Set the new limit to the correct value
-            buff.put(bb);                               // Read data
-            bb.limit(oldLimit);                         // Reset to the old limit
+            int oldLimit = bb.limit();                  // Remembers the old limit
+            bb.limit(bb.position() + buff.remaining()); // Sets the new limit to the correct value
+            buff.put(bb);                               // Reads data
+            bb.limit(oldLimit);                         // Resets to the old limit
         }
-        return buff.hasRemaining();                     // Return true if the buffer is not full
+        return buff.hasRemaining();                     // Returns true if the buffer is not full
     }
 
     /**
-     * @return the message if the process method have successfully read a message.
-     * @throws IllegalStateException if the process method haven't finished to read a message.
+     * @return the message if the process method has successfully read a message.
+     * @throws IllegalStateException if the process method hasn't finished to read a message.
      */
     @Override
     public String get() {
@@ -129,7 +129,7 @@ public class StringReader implements Reader<String> {
     }
 
     /**
-     * Reset the reader to it's initial state.
+     * Resets the reader to its initial state.
      * (This is equivalent to create a new {@link StringReader} without the allocation of a {@link ByteBuffer})<br>
      * Note that the message will not be accessible with {@link #get()} until {@link #process(ByteBuffer)}
      * have returned {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE}.
