@@ -3,11 +3,22 @@ package fr.uge.net.tcp.nonblocking.reader;
 import java.nio.ByteBuffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static fr.uge.net.tcp.nonblocking.config.Config.BUFFER_SIZE;
 
+/**
+ * This reader process a buffer to extract an integer followed by
+ * a string encoded in UTF8 with the length represented by the integer.
+ * Like so:
+ * <pre>
+ *   integer   string (utf8)
+ * --------------------------
+ * | length |     message   |
+ * --------------------------</pre>
+ */
 public class StringReader implements Reader<String> {
-    private static final int BUFFER_SIZE = 1_024;
     private final ByteBuffer buff = ByteBuffer.allocate(BUFFER_SIZE).limit(Integer.BYTES);
     private ProcessStatus state = ProcessStatus.REFILL;
+    private String message = null;
     private int size = -1;
 
     @Override
@@ -29,7 +40,10 @@ public class StringReader implements Reader<String> {
             buff.clear().limit(size);                                   // Set the inner buffer limit
         }
         fillInnerBuffer(bb);
-        return buff.hasRemaining() ? ProcessStatus.REFILL : ProcessStatus.DONE;
+        if (buff.hasRemaining()) return ProcessStatus.REFILL;
+
+        message = UTF_8.decode(buff.flip()).toString();
+        return ProcessStatus.DONE;
     }
 
     private void fillInnerBuffer(ByteBuffer bb) {
@@ -47,7 +61,7 @@ public class StringReader implements Reader<String> {
         if (state != ProcessStatus.DONE){
             throw new IllegalStateException();
         }
-        return UTF_8.decode(buff.flip()).toString();
+        return message;
     }
 
     @Override
@@ -55,5 +69,6 @@ public class StringReader implements Reader<String> {
         state = ProcessStatus.REFILL;
         buff.clear().limit(Integer.BYTES);
         size = -1;
+        message = null; // Not necessary
     }
 }
