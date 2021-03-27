@@ -51,6 +51,7 @@ public class StringReader implements Reader<String> {
     /**
      * Processes the buffer and extracts the length (integer)
      * and the message (encoded in UTF-8).
+     * This method remembers what has been processed beforehand.
      * The returned value can be :
      * <ul><li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
      *     if the reader has not finished.
