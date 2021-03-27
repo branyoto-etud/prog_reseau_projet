@@ -24,7 +24,3 @@ hs_err_pid*
 
 # Out folder
 out/*
-
-# JetBrain folders
-.idea
-.idea/*
