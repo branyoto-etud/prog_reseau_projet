@@ -1,5 +1,16 @@
 
 
+### Syntax
+
+- Global message : one line
+- Direct message : @pseudo message
+- Private connection : >pseudo
+
+Escape char '@' and '>' if first char
+\>pseudo  <=>  send a global message with the content '>pseudo'
+Same with @
+
+
 ### Todo
 
 -Fill ServerPacketReader
