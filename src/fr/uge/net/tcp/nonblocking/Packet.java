@@ -9,6 +9,34 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     public Packet {
         throw new IllegalStateException("Cannot create a Packet using constructor! Use PacketBuilder instead.");
     }
+    public static class PacketBuilder {
+        public static Packet makeErrorPacket(byte code) {
+            if (code < 0 || code >= ErrorCode.values().length) return null;
+            return new Packet(PacketType.ERR, ErrorCode.values()[code], null, null);
+        }
+        public static Packet makeAuthenticationPacket(String pseudo) {
+            return new Packet(PacketType.AUTH, null, null, pseudo);
+        }
+        public static Packet makeGeneralMessagePacket(String message) {
+            if (message == null) return null;
+            return new Packet(PacketType.GMSG, null, message, null);
+        }
+        public static Packet makeGeneralMessagePacket(String message, String pseudo) {
+            if (message == null || pseudo == null) return null;
+            return new Packet(PacketType.GMSG, null, message, pseudo);
+        }
+        public static Packet makeDirectMessagePacket(String message, String pseudo) {
+            if (message == null || pseudo == null) return null;
+            return new Packet(PacketType.DMSG, null, message, pseudo);
+        }
+        public static Packet makePrivateConnectionPacket(String pseudo) {
+            if (pseudo == null) return null;
+            return new Packet(PacketType.CP, null, null, pseudo);
+        }
+        public static Packet makeTokenPacket(int token) {
+            return new Packet(PacketType.TOKEN, null, "" + token, null);
+        }
+    }
     public enum PacketType {ERR, AUTH, GMSG, DMSG, CP, TOKEN}
     public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER, OTHER}
 

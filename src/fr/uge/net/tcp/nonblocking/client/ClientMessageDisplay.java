@@ -1,5 +1,7 @@
 package fr.uge.net.tcp.nonblocking.client;
 
+import fr.uge.net.tcp.nonblocking.Packet;
+
 import static java.util.Objects.requireNonNull;
 
 public class ClientMessageDisplay {
@@ -29,6 +31,25 @@ public class ClientMessageDisplay {
     }
     private static void pseudoAsk() {
         System.out.println("Enter your pseudo to authentication : ");
+    }
+    public static void onMessageReceived(Packet packet) {
+        requireNonNull(packet);
+        packet.display();
+    }
+    public static void onErrorReceived(Packet.ErrorCode code, String pseudo) {
+        requireNonNull(pseudo);
+        requireNonNull(code);
+        System.out.print(ANSI_BRIGHT_RED);
+        switch (code) {
+            case AUTH_ERROR -> onAuthFail(pseudo);
+            case DEST_ERROR -> System.out.println("Error : " + pseudo + " is not connected to the server!");
+            case REJECTED -> System.out.println("Error : The connection with " + pseudo + " has been rejected!");
+            case WRONG_CODE -> System.out.println("Error : The server received a packet with an invalid code!");
+            case INVALID_LENGTH -> System.out.println("Error ! Te server received a packet with an invalid length!");
+            case ERROR_RECOVER -> System.out.println("Recover on previous error!");
+            case OTHER -> System.out.println("Unknown Error! Should not happen!");
+        }
+        System.out.print(ANSI_RESET);
     }
     public static void onGeneralMessageReceived(String pseudo, String message) {
         requireNonNull(message);
