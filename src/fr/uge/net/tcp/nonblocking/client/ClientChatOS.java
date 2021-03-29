@@ -58,16 +58,16 @@ public class ClientChatOS {
             updateInterestOps();
         }
         private void processOut() {
-            while (!queue.isEmpty()){
-                if (queue.peek().remaining() > bbOut.remaining()) break;
-                bbOut.put(queue.remove());
+            while (!queue.isEmpty()){                                       // While there is a message
+                if (queue.peek().remaining() > bbOut.remaining()) break;    // Gets it and break if not enough room in buffOut
+                bbOut.put(queue.remove());                                  // Otherwise -> add into buffOut
             }
         }
         private void updateInterestOps() {
             var op=0;
-            if (!closed && bbIn.hasRemaining()) op = SelectionKey.OP_READ;
-            if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;
-            if (op==0)                          silentlyClose(sc);
+            if (!closed && bbIn.hasRemaining()) op = SelectionKey.OP_READ;      // If there's something to read
+            if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
+            if (op==0)                          silentlyClose(sc);              // If there's nothing to read nor write
             key.interestOps(op);
         }
         private void doRead() throws IOException {

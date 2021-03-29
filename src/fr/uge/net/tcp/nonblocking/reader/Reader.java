@@ -6,8 +6,10 @@ import java.nio.ByteBuffer;
  * <p>A reader is an object that take a buffer (in write-mode) as input and
  * process it to obtain an element of type T.
  * <p>
- * The method {@link #process(ByteBuffer)} will return {@link ProcessStatus#REFILL} until
- * the reader has finished reading data.
+ * The method {@link #process(ByteBuffer)} will read from the buffer until it has completed his task.
+ * In this case, it will return {@link ProcessStatus#DONE}.
+ * But if the buffer doesn't contain enough data, the reader will conserve what has been read so far
+ * and will return {@link ProcessStatus#REFILL}.
  * If {@link #process(ByteBuffer)} encounter an error the method will return {@link ProcessStatus#ERROR}.
  * The errors need to be explicitly specified in the implementations of {@link Reader}.
  * <p>

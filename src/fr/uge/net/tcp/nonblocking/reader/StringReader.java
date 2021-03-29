@@ -1,7 +1,10 @@
 package fr.uge.net.tcp.nonblocking.reader;
 
+import fr.uge.net.tcp.nonblocking.Config;
+
 import java.nio.ByteBuffer;
 
+import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static fr.uge.net.tcp.nonblocking.Config.TEXT_SIZE;
 import static java.util.Objects.requireNonNull;
@@ -17,10 +20,10 @@ import static java.util.Objects.requireNonNull;
  * ----------------------------</pre>
  * <br>
  * The {@code length} of the message cannot be greater than
- * {@link fr.uge.net.tcp.nonblocking.config.Config#BUFFER_SIZE}.
+ * {@link Config#TEXT_SIZE}.
  *
  * The method {@link #process(ByteBuffer)} can be used to read a message until
- * it returns {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE}.
+ * it returns {@link ProcessStatus#DONE}.
  * After that, a call to {@link #get()} will return the processed message.
  * If you want to reuse this reader to process a new message you need to call {@link #reset()}.
  *
@@ -43,7 +46,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class StringReader implements Reader<String> {
     // buff is always in write-mode
-    private final ByteBuffer buff = ByteBuffer.allocate(BUFFER_SIZE).limit(Integer.BYTES);
+    private final ByteBuffer buff = ByteBuffer.allocate(TEXT_SIZE).limit(Integer.BYTES);
     private ProcessStatus state = ProcessStatus.REFILL;
     private String message = null;
     private int length = -1;
@@ -53,17 +56,17 @@ public class StringReader implements Reader<String> {
      * and the message (encoded in UTF-8).
      * This method remembers what has been processed beforehand.
      * The returned value can be :
-     * <ul><li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
+     * <ul><li>   {@link ProcessStatus#REFILL} :
      *     if the reader has not finished.
-     * <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
-     *     if the length of the message is not between 1 and {@link fr.uge.net.tcp.nonblocking.config.Config#BUFFER_SIZE}.
-     * <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
+     * <li>   {@link ProcessStatus#ERROR} :
+     *     if the length of the message is not between 1 and {@link Config#TEXT_SIZE}.
+     * <li>   {@link ProcessStatus#DONE} :
      *     if the message is ready to be get.
      *
      * @param bb the buffer where to read the data.
      *           Must be in write-mode before being called and will be kept in write-mode after.
      * @return the current state of the reader.
-     * @throws IllegalStateException if the buffer's state is not {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL}.
+     * @throws IllegalStateException if the buffer's state is not {@link ProcessStatus#REFILL}.
      * @throws NullPointerException if {@code bb} is null.
      */
     @Override
@@ -105,17 +108,15 @@ public class StringReader implements Reader<String> {
      */
     @Override
     public String get() {
-        if (state != ProcessStatus.DONE){
-            throw new IllegalStateException();
-        }
-        return message;
+        if (state == ProcessStatus.DONE) return message;
+        throw new IllegalStateException();
     }
 
     /**
      * Resets the reader to its initial state.
      * (This is equivalent to create a new {@link StringReader} without the allocation of a {@link ByteBuffer})<br>
      * Note that the message will not be accessible with {@link #get()} until {@link #process(ByteBuffer)}
-     * have returned {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE}.
+     * have returned {@link ProcessStatus#DONE} once again.
      */
     @Override
     public void reset() {
