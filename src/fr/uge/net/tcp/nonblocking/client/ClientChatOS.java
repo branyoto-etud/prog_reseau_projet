@@ -2,7 +2,6 @@ package fr.uge.net.tcp.nonblocking.client;
 
 import fr.uge.net.tcp.nonblocking.Packet;
 import fr.uge.net.tcp.nonblocking.reader.ClientPacketReader;
-import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,6 +19,7 @@ import java.util.logging.Logger;
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeAuthenticationPacket;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
+import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 
 public class ClientChatOS {
     private static class Context {
@@ -38,17 +38,32 @@ public class ClientChatOS {
             closed = false;
             key = key_;
         }
-
         private void processIn() {
-            if (reader.process(bbIn) == Reader.ProcessStatus.DONE) {
-                treatMessage(reader.get());
-                reader.reset();
+            // TODO : Try to reconnect on error to avoid having multiple problems
+            var status = reader.process(bbIn);  // Processes the buffer
+            if (status == REFILL) return;                           // If needs refill -> stop
+            if (status == DONE) treatPacket(reader.get());          // If done -> treats the packet
+            reader.reset();                                         // Resets the buffer
+        }
+        private void treatPacket(Packet packet) {
+            onMessageReceived(packet);
+            switch (packet.type()) {
+                case ERR -> treatError(packet.code());
+                case AUTH -> connected = true;
+                case GMSG, DMSG -> {}   // Only need to be displayed (already done)
+                case TOKEN -> { // Todo : store token and start a new socket
+                }
             }
         }
-        private void treatMessage(Packet packet) {
-            onMessageReceived(packet);
+        private void treatError(Packet.ErrorCode code) {
+            switch (code) {
+                case WRONG_CODE, INVALID_LENGTH, OTHER -> {     // When receiving one of these error need to send a ERROR_RECOVERY
+                    // Todo : send ERROR_RECOVER
+                }
+                default -> {}                                   // nothing
+            }
         }
-
+        // Todo : Change String to Packet
         private void queueMessage(String msg) {
             if (!connected) {
                 queue.add(makeAuthenticationPacket(msg).toBuffer());
@@ -65,15 +80,13 @@ public class ClientChatOS {
         }
         private void updateInterestOps() {
             var op=0;
-            if (!closed && bbIn.hasRemaining()) op = SelectionKey.OP_READ;      // If there's something to read
+            if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
             if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
             if (op==0)                          silentlyClose(sc);              // If there's nothing to read nor write
             key.interestOps(op);
         }
         private void doRead() throws IOException {
-            if (sc.read(bbIn)==-1) {
-                closed=true;
-            }
+            if (sc.read(bbIn)==-1) closed = true;
             processIn();
             updateInterestOps();
         }
@@ -113,8 +126,15 @@ public class ClientChatOS {
 
     private void consoleRun() {
         try (var scan = new Scanner(System.in)){
+            String type = null;
             while (scan.hasNextLine()) {
-                sendCommand(scan.nextLine());
+                var line = scan.nextLine();
+                if (!uniqueContext.connected) sendCommand(line);
+                if (type == null) type = line;
+                else {
+                    sendCommand(line);
+                    type = null;
+                }
             }
         } finally {
             logger.info("Console thread stopping");

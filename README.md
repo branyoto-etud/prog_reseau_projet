@@ -2,9 +2,7 @@
 
 ### Todo
 
-- Create a ServerMessageReader
-- Complete the two MessageReaders
-- Verifier l'état des buffer dans ClientMessageReader
+-Fill ServerPacketReader
 
 
 
