@@ -87,34 +87,16 @@ public class StringReader implements Reader<String> {
      */
     private ProcessStatus subProcess(ByteBuffer bb) {
         if (length == -1) {                                                 // If the size has been read yet
-            if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;           // Tries to fill buff and asks for refill if not full
+            if (moveData(bb, buff)) return ProcessStatus.REFILL;            // Tries to fill buff and asks for refill if not full
             length = buff.flip().getInt();                                  // Gets the length of the message
             if (length <= 0 || length > 1_024) return ProcessStatus.ERROR;  // Checks if positive
             buff.clear().limit(length);                                     // Sets the inner buffer limit
         }
-        if (fillInnerBuffer(bb)) return ProcessStatus.REFILL;               // Tries to fill buff and asks for refill if not full
+        if (moveData(bb, buff)) return ProcessStatus.REFILL;                // Tries to fill buff and asks for refill if not full
 
         message = UTF_8.decode(buff.flip()).toString();                     // Reads the found string
         buff.clear();                                                       // Resets buffer
         return ProcessStatus.DONE;                                          // Validates the process
-    }
-
-    /**
-     * Fills {@link #buff} with the maximum that can be read from {@code bb}.
-     *
-     * @param bb the input buffer. Must be in read-mode.
-     * @return {@code true} the buffer is not full.
-     */
-    private boolean fillInnerBuffer(ByteBuffer bb) {
-        if (bb.remaining()<=buff.remaining()){          // If the inner buffer capacity is greater than given buffer
-            buff.put(bb);                               // Reads everything
-        } else {                                        // Otherwise
-            int oldLimit = bb.limit();                  // Remembers the old limit
-            bb.limit(bb.position() + buff.remaining()); // Sets the new limit to the correct value
-            buff.put(bb);                               // Reads data
-            bb.limit(oldLimit);                         // Resets to the old limit
-        }
-        return buff.hasRemaining();                     // Returns true if the buffer is not full
     }
 
     /**
