@@ -2,10 +2,9 @@
 
 ### Todo
 
-- Remove the timeout for the protocole
-
-
-
+- Create a ServerMessageReader
+- Complete the two MessageReaders
+- Verifier l'état des buffer dans ClientMessageReader
 
 
 
