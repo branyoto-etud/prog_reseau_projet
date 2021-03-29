@@ -16,18 +16,21 @@ Résumé
    précédé d'une identification. Il utilise le protocole TCP pour transférer ses
    paquets entre le.s client.s et le serveur.
    Toutes les chaines de caractères seront dans un premier temps encodé en UTF8.
-   Il y a trois modes d'envoie de message: général (envoie d'un message encodé
-   à tous les utilisateurs connecté), direct (permet d'envoyer un message à un
+   Il y a trois modes d'envoie de packet: général (envoie d'un message encodé
+   à tous les utilisateurs connecté), direct (permet d'envoyer un packet à un
    seul utilisateur connecté au serveur et étant identifié par une chaine de
    caractères) et privée (permet d'envoyer des messages privé à un autre
    utilisateur connecté au serveur en utilisant le serveur comme point de relais,
    donc aucune information ne sera lu/retenu par le serveur).
-   Comme précisé plus haut, les chaines de caractères (c'est-à-dire message et
+   Comme précisé plus haut, les chaines de caractères (c'est-à-dire messages et
    pseudo) sont encodé en UTF8. Mais il n'est pas impossible qu'une évolution du
    protocole permette de faire choisir aux utilisateurs leur jeu de caractères
    (avec UTF8 par défaut). Cependant dans le cas d'une connection privée, le
    serveur ne faisant office que de relais, l'encodage importe peu vu que le
    serveur se contente de réenvoyer les paquets reçu à l'identique.
+   Etant donné l'utilisation du protocole TCP, il n'y a pas besoin d'acquitter
+   les paquets cependant tous les paquets contenant du texte auront un entier
+   (4 octets) indiquant la taille du texte suivit du texte encodé.
 
 
 2. Aperçu du protocole
@@ -44,14 +47,11 @@ Résumé
    des instructions est: le client A demande au serveur de se connecter au
    client B. Si B existe alors il reçoit une demande de connection privé qu'il
    peut accepter ou non. Dans les deux cas sont choix est transmis au serveur.
-   Si le client B refuse, le client A est prévenu du refus.
+   Si le client B refuse, le client A est prévenu du refus par un packet d'erreur.
    Si le client B accepte la connection alors le serveur envoie un packet aux
    deux clients contenant un identifiant unique permettant aux clients de créer
    une nouvelle socket qui servira à se connecter au serveur en tant que connection
    privée.
-   Etant en TCP, il n'y a pas besoin d'acquitter les paquets cependant tous les
-   paquets contenant du texte auront un entier (4 octets) indiquant la taille du
-   texte suivit du texte encodé.
 
    Dans le cas de la perte de connection avec le client, le serveur considèrera
    que le client s'est déconnecté en bonne et due forme même si un transfert de
@@ -60,50 +60,45 @@ Résumé
    Dans le cas ou le client pert la connection avec le serveur, le client n'aura
    rien de spécial à faire.
 
-   Quand le serveur reçoit un paquet contenant un message ou une demande de
+   Quand le serveur reçoit un paquet contenant un packet ou une demande de
    connection privée impliquant un autre utilisateur (identifié par son pseudo)
    si ledit paquet contient un pseudo erroné ou non existant, un paquet d'erreur
    sera envoyé en retour. De même que si lors de son authentification au serveur
    l'utilisateur fournit un pseudo déjà utilisé par quelqu'un d'autre, il recevra
    un paquet d'erreur. Enfin si le serveur ou le client reçoit un paquet mal formé
-   (ex. on indique un texte de longueur 3 mais on reçoit un texte plus long)
-   l'expéditeur recevra un paquet d'erreur. Si la longueur d'un morceau de texte
-   est supérieure à celle du texte reçu, il est difficile de le déterminer, donc
-   l'erreur pourrait être envoyé à la réception du paquet suivant.
-
-   Si un client n'envoie plus de données pendant X minutes, il recevra un ping
-   auquel il devra répondre s'il ne veut pas se faire deconnecter. De même si
-   le serveur ne reçoit pas de réponse à un paquet envoyé (qui necessite une
-   réponse) au bout d'une seconde il deconnectera le client.
+   (ex. reception d'un packet indiquant une longueur négative ou ayant un code erroné)
+   l'expéditeur recevra un paquet d'erreur. Si la longueur attendu est supérieure à
+   celle du texte reçu, il est difficile de le déterminer, donc l'erreur pourrait
+   se produire à la réception du paquet suivant.
 
 3. Paquets ChatOS
 
-   ChatOS prend en charge six types de paquets:
+   ChatOS prend en charge les types de paquets suivant:
 
    Codes =  0 Erreur
-            1 Connection (CON)
+            1 Connection (AUTH)
             2 Message général (GMSG)
             3 Message direct (DMSG)
             4 Connection privée (CP)
-            5 Demande d'activité (DA)
+            5 Identification (TOKEN)
 
     Le premier octet de chaque paquets représente l'un des codes ci-dessus
 
 
-    A. Connection (CON)
+    A. Connection (AUTH)
 
                 1 octet    4 octets (int)      string
                 -----------------------------------------
                |     1 | taille du pseudo |    pseudo    |
                 -----------------------------------------
-                     Figure 3-A-1: paquet CON (auth)
+                     Figure 3-A-1: paquet AUTH (auth)
 
-   Le paquet CON est très simple. C'est le premier paquet envoyé au serveur par
+   Le paquet AUTH est très simple. C'est le premier paquet envoyé au serveur par
    le client, il contient (en plus du code) un entier sur 4 octets représentant
    la longueur en octet du pseudo encodé suivit du pseudo encodé.
 
    Suite à l'envoi de ce paquet, le client attend que le serveur lui renvoie un
-   paquet de validation contenant juste 1 ou un paquet d'erreur dans le cas ou le
+   paquet de validation ayant le même contenu ou un paquet d'erreur dans le cas ou le
    pseudo est déjà utilisé ou si le paquet est mal formé.
 
    Une fois l'authentification réussi, le client peut maintenant envoyer et
@@ -115,25 +110,25 @@ Résumé
                  -------------------------------------
                 |     2 | taille du message | message |
                  -------------------------------------
-              Figure 3-B-1: paquet GMSG (client -> serveur)
+                  Figure 3-B-1: paquet GMSG (client)
 
        1 octet    4 octets (int)     string      4 octets (int)    string
        -------------------------------------------------------------------
       |     2 | taille du message |  message  | taille du pseudo | pseudo |
        -------------------------------------------------------------------
-              Figure 3-B-2: paquet GMSG (serveur -> client)
+                     Figure 3-B-2: paquet GMSG (serveur)
 
    Ce paquet permet d'envoyer à tous les clients connecté un message.
    Il existe deux types de GMSG, les paquets client et les paquets serveur.
-   Les paquets client contienent le code 2 suivit de la taille (en octets) du
-   message précédant le message.
+   Les paquets client contienent le code 2 suivit de la taille du packet (en octets)
+   suivit du packet.
    Le serveur recevant ce paquet va envoyer à chaque clients connecté un paquet
    contenant le même message suivit d'un entier (4 octets) représentant la taille
-   du pseudo de l'expéditeur du message qui suivra cet entier.
+   du pseudo de l'expéditeur du packet qui suivra cet entier.
 
    Le client ne reçoit pas de réponse suite à l'envoie de son message.
 
-    C. Message général (DMSG)
+    C. Message direct (DMSG)
 
        1 octet    4 octets (int)     string      4 octets (int)    string
        -------------------------------------------------------------------
@@ -151,22 +146,22 @@ Résumé
    d'un paquet envoyé par le serveur.
    Si le client reçoit un paquet d'erreur suite à l'envoie d'un message direct
    c'est que l'utilisateur demandé n'est pas connecté au serveur.
-   (A-t-on besoin d'identifier le message pour que l'utilisateur sache quel
-   message est incorrect? Si oui ajouter au message d'erreur pseudo incorrect!)
+   (A-t-on besoin d'identifier le packet pour que l'utilisateur sache quel
+   packet est incorrect? Si oui ajouter au packet d'erreur pseudo incorrect!)
 
-    D. Connection Privée (CP)
+    D. Connection Privée (CP) & Identification (TOKEN)
 
                    1 octet   4 octets (int)    string
                    -----------------------------------
                   |     4 | taille du pseudo | pseudo |
                    -----------------------------------
-                    Figure 3-D-1: paquet CP (demande)
+                         Figure 3-D-1: paquet CP
 
-                 1 octet   4 octets (int)   4 octets (int)
-                 ------------------------------------------
-                |     4 |              0 |      token      |
-                 ------------------------------------------
-                  Figure 3-D-2: paquet CP (identification)
+                         1 octet   4 octets (int)
+                        -------------------------
+                       |     5 |     token       |
+                        -------------------------
+                        Figure 3-D-2: paquet TOKEN
 
    Le paquet CP demande indique qu'un client (A) veut se connecter à un autre
    client (B).
@@ -176,35 +171,18 @@ Résumé
    Ensuite le client B aura deux choix: accepter la connection (auquel cas il
    va envoyer un paquet similaire à celui envoyé par le client A, càd contenant
    le pseudo du client A) ou refuser la connection (auquel cas il enverra un
-   paquet CP de validation).
+   paquet d'erreur REJECT).
    Le serveur reçoit donc la réponse du client B et transmet le choix au client
-   A, si la connection est refusée alors il recevra un paquet d'erreur. Si la
-   connection est acceptée alors les deux recevront un paquet CP d'identification.
+   A, si la connection est refusée alors il recevra un paquet d'erreur REJECT. Si la
+   connection est acceptée alors les deux recevront un paquet d'identification (TOKEN).
    Suite à cela les clients vont devoir initialiser une nouvelle connection avec le
-   serveur en lui envoyant comme premier message le paquet CP d'identification.
+   serveur en lui envoyant comme premier packet le paquet TOKEN.
    (le serveur saura alors que le nouveau client est une demande de connection
    privée et il pourra completer la connection quand le deux clients auront bien
    été connecté).
    Enfin les clients pourront communiquer entre eux comme si c'était une connection
-   TCP normale (le serveur relais seulement les paquets sans les modifier).
+   TCP normale (le serveur relais simplement les paquets sans les modifier).
 
-    E. Demande d'activité (DA)
-
-                           1 octet 1 octet
-                           ---------------
-                          |     5 |  code |
-                           ---------------
-                       Figure 3-E-1: paquet DA
-
-   Le paquet de demande d'activité est envoyé par ke serveur pour vérifié qu'un
-   utilisateur n'est pas AFK (Away From the Keyboard = "loin du clavier").
-   Les codes possibles sont:
-      - 1 pour demander au client de signaler sa présence
-      - 2 pour signaler au serveur qu'on est actif
-
-   Le paquet DA est envoyé au client avec le code 1 et le client doit répondre
-   avec un paquet DA contenant le code 2 avant un certain delais pour ne pas se
-   faire deconnecter.
 
 4. Résiliation normale
 
@@ -214,22 +192,23 @@ Résumé
    des deux se fait déconnecter (naturellement ou par manque d'activité) alors
    l'autre client sera aussi déconnecté.
 
-   Lorsqu'un client se fait déconnecter, il reçoit un paquet d'erreur contenant
-   le code DISCONNECTED (bien que dans le cas d'une fin de connection naturelle
-   ce soit un paquet perdu).
+   Lorsqu'un client se fait déconnecter, il ne reçoit aucun packet pour l'en informer,
+   mais la connection avec le serveur sera coupée.
 
-5. Résiliation prématurée
+5. Gestion des erreurs
 
-   La connection entre le client et le serveur est soumise à une contrainte de
-   temps et de cohérence. Donc si un des cas suivant est rencontré, le client
-   sera déconnecté par l'envoie d'un paquet d'erreur avec le code DISCONNECTED:
-   - Si le serveur ne peut pas interpréter correctement un paquet reçu.
-   - Si le client n'envoie plus de données pendant X minutes, il recevra alors un
-   paquet DA auquel il doit répondre avant Y minutes pour ne pas se faire
-   déconnecter. Si il ne répond pas avant le temps imparti il sera déconnecté.
-   - Si le serveur est en attente de la réponse d'un client (donc si le serveur
-   envoie un paquet necessitant un paquet retour) depuis plus de Z secondes alors
-   le client sera déconnecté.
+    Si client reçoit des paquets mal formé il doit les ignorer.
+
+    Si le server reçoit un paquet mal formé alors il renverra un paquet d'erreur.
+    Et ignorera tout les octets reçu de ce client jusqu'à recevoir un paquet (ERROR_RECOVER)
+    qui signalera qu'à partir de là les packet ne seront plus corrompu.
+    Voici les différentes malformations et leur code d'erreur asocié:
+     - Si le code n'est pas un des octet spécifié ci-dessus. WRONG_CODE.
+     - Si la longueur d'un message est négative, égale à 0 ou suppérieur à 1'024. INVALID_LENGTH.
+
+    La raison pour laquelle le serveur attend que le client lui envoit un paquet (ERROR_RECOVER)
+    est que les données que le client a envoyé sont probablement corrompu et que le serveur
+    ne saurait pas comment récupérer l'erreur autrement.
 
 I. Annexe
 
@@ -237,37 +216,44 @@ Formats ChatOS
 
   Type      octet       4 octets        string        4 octect      string
            ------------------------------------
-  CON     |    1 |  taille du pseudo |  pseudo |
+  AUTH    |    1 |  taille du pseudo |  pseudo |
            ------------------------------------
            ------------------------------------
   GMSG    |    2 | taille du message | message |
-  (c->s)     ------------------------------------
+  (client) ------------------------------------
            ----------------------------------------------------------------
   GMSG    |    2 | taille du message | message | taille du pseudo | pseudo |
-  (s->c)     ----------------------------------------------------------------
+  (server) ----------------------------------------------------------------
            ----------------------------------------------------------------
   DMSG    |    3 | taille du message | message | taille du pseudo | pseudo |
            ----------------------------------------------------------------
            ------------------------------------
-  DA      |    4 |  taille du pseudo |  pseudo |
+  CP      |    4 |  taille du pseudo |  pseudo |
            ------------------------------------
-            octet    octet
-           -----------------
-  ERROR   |    5 |  ErrCode |
-           -----------------
+            octet  integer
+           ---------------
+  TOKEN   |    5 |  token |
+           ---------------
+            octet   octet
+           ----------------
+  ERROR   |    0 | ErrCode |
+           ----------------
 
 Codes d'erreur
 
-   Valeur Signification
-
-   0 : Erreur générique.
-   1 : Erreur d'authentification. (AUTH_ERROR)
-   2 : Erreur de destinataire. (DEST_ERROR)
-   3 : Connection rejetée. (REJECT)
-   4 : Déconnection. (DISCONNECTED)
+   Valeur | Signification
+        0 | Erreur d'authentification. (AUTH_ERROR)
+        1 | Erreur de destinataire. (DEST_ERROR)
+        2 | Connection rejetée. (REJECT)
+        3 | Erreur de code. (WRONG_CODE)
+        4 | Longueur invalide. (INVALID_LENGTH)
+        5 | Récupération d'erreur. (ERROR_RECOVER)
+        6 | Erreur générique. (OTHER)
 
 Considérations de sécurité
 
    La protocole ChatOS n'a pas de sécurisation en tant que tel. Cependant
    l'utilisation d'un pseudonyme permet l'anonymat des utilisateurs envers les
    autres utilisateurs présent sur le serveur.
+   De plus le fait d'utiliser une connection privée permet d'étabilir une
+   connection entre 2 utilisateurs sans divulger leur adresse IP.
