@@ -3,7 +3,7 @@ package fr.uge.net.tcp.nonblocking.reader;
 import java.nio.ByteBuffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static fr.uge.net.tcp.nonblocking.config.Config.BUFFER_SIZE;
+import static fr.uge.net.tcp.nonblocking.Config.TEXT_SIZE;
 import static java.util.Objects.requireNonNull;
 
 /**
