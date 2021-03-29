@@ -22,31 +22,54 @@ import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeAuthentication
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 
 public class ClientChatOS {
-    private class Context {
+    private static class Context {
+        private final LinkedList<ByteBuffer> queue = new LinkedList<>(); // Stored buffer are in write-mode
         private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
         private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
+        private final ClientPacketReader reader = new ClientPacketReader();
         private final SelectionKey key;
         private final SocketChannel sc;
-        private boolean closed = false;
+        private boolean connected;
+        private boolean closed;
 
-        private Context(SelectionKey key){
-            this.key = key;
-            this.sc = (SocketChannel) key.channel();
+        private Context(SelectionKey key_){
+            sc = (SocketChannel) key_.channel();
+            connected = false;
+            closed = false;
+            key = key_;
         }
 
-        private void processIn() { // TODO
+        private void processIn() {
+            if (reader.process(bbIn) == Reader.ProcessStatus.DONE) {
+                treatMessage(reader.get());
+                reader.reset();
+            }
         }
-        private void processOut() { // TODO
+        private void treatMessage(Packet packet) {
+            onMessageReceived(packet);
         }
 
+        private void queueMessage(String msg) {
+            if (!connected) {
+                queue.add(makeAuthenticationPacket(msg).toBuffer());
+            }
+            // TODO: add other type of messages
+            processOut();
+            updateInterestOps();
+        }
+        private void processOut() {
+            while (!queue.isEmpty()){
+                if (queue.peek().remaining() > bbOut.remaining()) break;
+                bbOut.put(queue.remove());
+            }
+        }
         private void updateInterestOps() {
             var op=0;
-            if (!closed && bbIn.hasRemaining()) op |= SelectionKey.OP_READ;
+            if (!closed && bbIn.hasRemaining()) op = SelectionKey.OP_READ;
             if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;
             if (op==0)                          silentlyClose(sc);
             key.interestOps(op);
         }
-
         private void doRead() throws IOException {
             if (sc.read(bbIn)==-1) {
                 closed=true;
@@ -54,17 +77,21 @@ public class ClientChatOS {
             processIn();
             updateInterestOps();
         }
-
         private void doWrite() throws IOException {
             sc.write(bbOut.flip());
             bbOut.compact();
             processOut();
             updateInterestOps();
         }
-
         public void doConnect() throws IOException {
-            if (!sc.finishConnect()) return;
-            key.interestOps(SelectionKey.OP_WRITE);
+            try {
+                if (!sc.finishConnect()) return;
+                onConnectSuccess();
+                key.interestOps(SelectionKey.OP_WRITE);
+            } catch (IOException ioe) {
+                onConnectFail();
+                throw ioe;
+            }
         }
     }
     static private final Logger logger = Logger.getLogger(ClientChatOS.class.getName());
@@ -99,7 +126,9 @@ public class ClientChatOS {
         selector.wakeup();
     }
     private void processCommands(){
-        // TODO
+        if (commandQueue.isEmpty()) return;
+        uniqueContext.queueMessage(commandQueue.remove());
+        uniqueContext.key.interestOps(uniqueContext.key.interestOps() | SelectionKey.OP_WRITE);
     }
     public void launch() throws IOException {
         var key = sc.register(selector, SelectionKey.OP_CONNECT);
@@ -133,7 +162,12 @@ public class ClientChatOS {
             throw new UncheckedIOException(ioe);
         }
     }
-    private void silentlyClose(Channel channel) {
+
+    // --------------------------------------------------
+    // Static Methods
+    // --------------------------------------------------
+
+    private static void silentlyClose(Channel channel) {
         try {channel.close();} catch (IOException ignore) {}
     }
     public static void main(String[] args) throws NumberFormatException, IOException {
