@@ -13,6 +13,7 @@ Same with @
 ### Todo
 
 -Fill ServerPacketReader
+-Add String after the Error packet with code REJECTED
 
 ### Disclaimer 
 The only file that is ensured to be up to date is the Protocole.txt.

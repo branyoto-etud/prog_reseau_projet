@@ -20,6 +20,15 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             return new Packet(PacketType.ERR, ErrorCode.values()[code], null, null);
         }
         /**
+         * Create an error packet with {@link ErrorCode#REJECTED} and the {@code pseudo}.
+         * @param pseudo the name of the client that reject the private connection.
+         * @return a new error packet with {@link ErrorCode#REJECTED} and the {@code pseudo}.
+         */
+        public static Packet makeRejectedPacket(String pseudo) {
+            if (pseudo == null) return null;
+            return new Packet(PacketType.ERR, ErrorCode.REJECTED, null, pseudo);
+        }
+        /**
          * Create an error packet with the given error code.
          * @param code the error code.
          * @return a new error packet with the given code.
@@ -27,7 +36,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
         public static Packet makeErrorPacket(ErrorCode code) {
             return new Packet(PacketType.ERR, code, null, null);
         }
-
         /**
          * Create an authentication packet with the given pseudo.
          * @param pseudo the pseudo of the client.
@@ -80,25 +88,25 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             return new Packet(PacketType.CP, null, null, pseudo);
         }
         /**
-         * Create a token packet containing a identification key.
+         * Create a token packet containing an identification key and the pseudo
+         * of the other client.
          * @param token the identification key.
-         * @return a new token packet.
+         * @param pseudo the pseudo of the other client.
+         * @return a new token packet or null if {@code pseudo} is null.
          */
-        public static Packet makeTokenPacket(int token) {
-            return new Packet(PacketType.TOKEN, null, "" + token, null);
+        public static Packet makeTokenPacket(int token, String pseudo) {
+            if (pseudo == null) return null;
+            return new Packet(PacketType.TOKEN, null, "" + token, pseudo);
         }
     }
-
     /**
      * Type of the different packets.
      */
     public enum PacketType {ERR, AUTH, GMSG, DMSG, CP, TOKEN}
-
     /**
      * Possible error codes.
      */
     public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER, OTHER}
-
     /**
      * Check if {@code length} is not bigger than {@link Config#TEXT_SIZE}.
      * @param length the length to check.
@@ -111,7 +119,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
         }
         return length;
     }
-
     /**
      * Create a buffer representing the packet that is sent according to the protocol CHATOS.
      *
@@ -129,7 +136,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             case TOKEN -> tokenToBuffer();
         };
     }
-
     /**
      * Create a buffer containing the packet for an error.
      * <pre>
@@ -143,7 +149,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     private ByteBuffer errToBuffer() {
         return ByteBuffer.allocate(2).put((byte) type.ordinal()).put((byte) code.ordinal());
     }
-
     /**
      * Create a buffer containing the packet for an authentication.
      * <pre>
@@ -160,7 +165,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
                 .putInt(length)
                 .put(pseudoBuff);
     }
-
     /**
      * Create a buffer containing the packet representing a message destined to everyone.
      * Can have two representation :
@@ -188,7 +192,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
                 .putInt(length)
                 .put(messageBuffer);
     }
-
     /**
      * Create a buffer containing the packet representing a message destined to only one client.
      * In the case of a packet send by the server, the pseudo represent the source
@@ -212,7 +215,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
                 .putInt(destLength)
                 .put(destBuffer);
     }
-
     /**
      * Create a buffer containing the packet for a private connection.
      * In the case of a packet send by the server, the pseudo represent the source
@@ -245,7 +247,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
                 .put((byte) PacketType.TOKEN.ordinal())
                 .putInt(Integer.parseInt(message));
     }
-
     /**
      * Display the packet in the standard output.
      */

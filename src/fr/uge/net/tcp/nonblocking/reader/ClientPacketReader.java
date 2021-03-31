@@ -5,6 +5,7 @@ import fr.uge.net.tcp.nonblocking.Packet.PacketType;
 
 import java.nio.ByteBuffer;
 
+import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.REJECTED;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
@@ -17,6 +18,7 @@ public class ClientPacketReader implements Reader<Packet> {
     private PacketType type = null;
     private Packet packet = null;
     private String element = null;
+    private byte errorCode = -1;
 
     /**
      * Processes the buffer and extracts a byte (the type of the packet).
@@ -64,11 +66,9 @@ public class ClientPacketReader implements Reader<Packet> {
 
         switch (type) {
             case ERR -> {
-                var ret = !bb.flip().hasRemaining() ? REFILL :                      // If the input has not at least 1 byte -> REFILL
-                        (packet = makeErrorPacket(bb.get())) == null ? ERROR        // If the read byte are not valid -> ERROR
-                                : DONE;                                             // Otherwise -> DONE
-                bb.compact();                                                       // Go back in write mode
-                return ret;
+                var status = processError(bb.flip());
+                bb.compact();
+                return status;
             }
             case AUTH -> {
                 var status = reader.process(bb);                                        // Tries to read a string
@@ -110,6 +110,23 @@ public class ClientPacketReader implements Reader<Packet> {
     }
 
     /**
+     * @param bb buffer in read-mode.
+     * @return the current status of the reader.
+     */
+    private ProcessStatus processError(ByteBuffer bb) {
+        if (!bb.hasRemaining()) return REFILL;      // Stop if nothing to read
+        if (errorCode == -1) errorCode = bb.get();  // If the code has not been read yet
+        if (errorCode == REJECTED.ordinal()) {      // If the code is REJECTED
+            var status = reader.process(bb);        // Tries to read a string
+            if (status != DONE) return status;      // If not successful return the status
+            element = reader.get();                 // Otherwise take the element
+            packet = makeRejectedPacket(element);   // Creates a REJECTED packet
+            return DONE;                            // Returns DONE
+        }
+        return (packet = makeErrorPacket(bb.get())) == null ? ERROR : DONE;
+    }
+
+    /**
      * @return the packet if the process method has successfully read a packet.
      * @throws IllegalStateException if the process method hasn't finished to read a packet.
      */
@@ -126,11 +143,12 @@ public class ClientPacketReader implements Reader<Packet> {
      */
     @Override
     public void reset() {
-        buff.clear();
-        reader.reset();
         status = REFILL;
-        type = null;
-        packet = null;
+        reader.reset();
         element = null;
+        errorCode = -1;
+        packet = null;
+        buff.clear();
+        type = null;
     }
 }

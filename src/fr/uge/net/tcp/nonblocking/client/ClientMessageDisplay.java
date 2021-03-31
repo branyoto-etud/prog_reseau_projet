@@ -67,6 +67,6 @@ public class ClientMessageDisplay {
     public static void onPrivateConnectionReceived(String pseudo) {
         requireNonNull(pseudo);
         System.out.print(ANSI_RED + pseudo + " request a private connection." + ANSI_RESET);
-        System.out.println("Accept ? (" + ANSI_GREEN + "o" + ANSI_RESET + "/" + ANSI_BRIGHT_RED + "n" + ANSI_RESET + ")");
+        System.out.println("Accept ? (" + ANSI_GREEN + "y" + ANSI_RESET + "/" + ANSI_BRIGHT_RED + "n" + ANSI_RESET + ")");
     }
 }
