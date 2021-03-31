@@ -19,6 +19,14 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             if (code < 0 || code >= ErrorCode.values().length) return null;
             return new Packet(PacketType.ERR, ErrorCode.values()[code], null, null);
         }
+        /**
+         * Create an error packet with the given error code.
+         * @param code the error code.
+         * @return a new error packet with the given code.
+         */
+        public static Packet makeErrorPacket(ErrorCode code) {
+            return new Packet(PacketType.ERR, code, null, null);
+        }
 
         /**
          * Create an authentication packet with the given pseudo.
@@ -26,6 +34,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
          * @return a new authentication packet or null if {@code pseudo} is null.
          */
         public static Packet makeAuthenticationPacket(String pseudo) {
+            if (pseudo == null) return null;
             return new Packet(PacketType.AUTH, null, null, pseudo);
         }
         /**
