@@ -40,7 +40,6 @@ public class ServerChatOS {
         private void processIn() {
             // Todo : improve reject of message after error reception
             var status = reader.process(bbIn);      // Process Input
-            System.out.println(status);
             if (status == REFILL) return;           // If not full -> stop
             if (status == ERROR) {                  // On error
                 if (!rejecting) {                   // If first error -> send error packet
@@ -108,14 +107,14 @@ public class ServerChatOS {
                 case AUTH -> {} // Received when already authenticated -> Impossible/Ignore
                 case GMSG -> broadcast(makeGeneralMessagePacket(packet.message(), packet.pseudo()));
                 case DMSG -> {
-                    if (!clients.containsKey(packet.pseudo())) {
+                    if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
                         queueMessage(makeErrorPacket(DEST_ERROR));
                     } else {
                         clients.get(packet.pseudo()).queueMessage(makeDirectMessagePacket(packet.message(), pseudo));
                     }
                 }
                 case CP -> {
-                    if (!clients.containsKey(packet.pseudo())) {
+                    if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
                         queueMessage(makeErrorPacket(DEST_ERROR));
                         return;
                     }

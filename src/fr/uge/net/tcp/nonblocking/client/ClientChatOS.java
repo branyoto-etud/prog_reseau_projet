@@ -68,7 +68,6 @@ public class ClientChatOS {
                     ctx.launch(parseInt(packet.message()));
                     if (pendingConnection.containsKey(packet.pseudo())) {
                         ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
-                        privateConnections.put(packet.pseudo(), ctx);
                     }
                 }
             }
@@ -214,6 +213,7 @@ public class ClientChatOS {
         key.attach(context);
         pc.connect(serverAddress);
         privateConnections.put(pseudo, context);
+//        selector.wakeup();
         return context;
     }
     public void launch() throws IOException {
@@ -238,13 +238,13 @@ public class ClientChatOS {
     private void treatKey(SelectionKey key) {
         try {
             if (key.isValid() && key.isConnectable()) {
-                mainContext.doConnect();
+                ((Context) key.attachment()).doConnect();
             }
             if (key.isValid() && key.isWritable()) {
-                mainContext.doWrite();
+                ((Context) key.attachment()).doWrite();
             }
             if (key.isValid() && key.isReadable()) {
-                mainContext.doRead();
+                ((Context) key.attachment()).doRead();
             }
         } catch(IOException ioe) {
             throw new UncheckedIOException(ioe);

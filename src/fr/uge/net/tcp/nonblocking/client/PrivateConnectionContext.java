@@ -21,7 +21,6 @@ public class PrivateConnectionContext implements Context {
     private final SocketChannel sc;
     private final SelectionKey key;
     private final String other;
-    private boolean accepted;
     private boolean closed;
 
     public PrivateConnectionContext(String other, SelectionKey key) {
@@ -29,17 +28,12 @@ public class PrivateConnectionContext implements Context {
         sc = (SocketChannel) key.channel();
         this.key = requireNonNull(key);
         closed = false;
-        accepted = false;
     }
     /**
      * Initiate the connection to the server.
      */
     public void launch(int token) {
-        accepted = true;
-        System.out.println("launch");
         queue.add(makeTokenPacket(token, other).toBuffer().flip());
-        processOut();
-        updateInterestOps();
     }
     private void processIn() {
         // Todo : Read HTTP content
@@ -48,27 +42,22 @@ public class PrivateConnectionContext implements Context {
     public void queueMessage(String msg) {
         // Todo : Convert msg to HTTP
         System.out.println(msg);
-        queue.add(StandardCharsets.UTF_8.encode(msg).compact());
-        processOut();
-        updateInterestOps();
+//        queue.add(StandardCharsets.UTF_8.encode(msg).compact());
+//        processOut();
+//        updateInterestOps();
     }
     private void processOut() {
-        System.out.println("processOut " + queue.size());
         while (!queue.isEmpty()){                                       // While there is a message
-            System.out.println(queue.peek());
-            System.out.println(bbOut);
             if (queue.peek().remaining() > bbOut.remaining()) break;    // Gets it and break if not enough room in buffOut
             bbOut.put(queue.remove());                                  // Otherwise -> add into buffOut
-            System.out.println("Passed " + queue.size());
         }
-        System.out.println(bbOut);
     }
     private void updateInterestOps() {
         var op=0;
         if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
         if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
-        if (op==0)                          silentlyClose(sc);              // If there's nothing to read nor write
-        else                                key.interestOps(op);
+        if (op != 0)                        key.interestOps(op);
+        else                                silentlyClose(sc);              // If there's nothing to read nor write
     }
     @Override
     public void doRead() throws IOException {
@@ -89,8 +78,9 @@ public class PrivateConnectionContext implements Context {
     public void doConnect() throws IOException {
         try {
             if (!sc.finishConnect()) return;
-            onConnectSuccess();
-            key.interestOps(SelectionKey.OP_WRITE);
+            processOut();
+            System.out.println("coucou");
+            updateInterestOps();
         } catch (IOException ioe) {
             onConnectFail();
             throw ioe;
