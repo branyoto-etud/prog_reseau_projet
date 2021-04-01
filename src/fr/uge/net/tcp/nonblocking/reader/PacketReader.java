@@ -11,7 +11,7 @@ import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.util.Objects.requireNonNull;
 
-public class ClientPacketReader implements Reader<Packet> {
+public class PacketReader implements Reader<Packet> {
     private final ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES); // Used to read a TOKEN
     private final StringReader reader = new StringReader();
     private ProcessStatus status = REFILL;
@@ -134,9 +134,8 @@ public class ClientPacketReader implements Reader<Packet> {
             errorCode = bb.get();
             bb.compact();
         }
-        if (errorCode != REJECTED.ordinal()) {
+        if (errorCode != REJECTED.ordinal())
             return (packet = makeErrorPacket(errorCode)) == null ? ERROR : DONE;
-        }
 
         // If the code is REJECTED
         var status = reader.process(bb);        // Tries to read a string
