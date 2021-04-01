@@ -7,13 +7,17 @@ import java.nio.ByteBuffer;
 
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.REJECTED;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.util.Objects.requireNonNull;
 
 public class PacketReader implements Reader<Packet> {
+    public enum ProcessFailure {CODE, LENGTH}
+
     private final ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES); // Used to read a TOKEN
     private final StringReader reader = new StringReader();
+    private ProcessFailure failure = null;
     private ProcessStatus status = REFILL;
     private PacketType type = null;
     private Packet packet = null;
@@ -53,7 +57,7 @@ public class PacketReader implements Reader<Packet> {
     public ProcessStatus process(ByteBuffer bb) {
         requireNonNull(bb);
         if (status != REFILL) throw new IllegalStateException();
-        if (!bb.flip().hasRemaining()) {
+        if (!bb.flip().hasRemaining()) { // Fail-fast if nothing to read
             bb.compact();
             return REFILL;
         }
@@ -65,7 +69,10 @@ public class PacketReader implements Reader<Packet> {
         if (type == null) {
             var t = bb.flip().get();
             bb.compact();
-            if (t < 0 || t >= PacketType.values().length) return ERROR;
+            if (t < 0 || t >= PacketType.values().length) {
+                failure = CODE;
+                return ERROR;
+            }
             type = PacketType.values()[t];
         }
 
@@ -76,20 +83,24 @@ public class PacketReader implements Reader<Packet> {
             case AUTH -> {
                 var status = reader.process(bb);                                        // Tries to read a string
                 if (status == DONE) packet = makeAuthenticationPacket(reader.get());    // If success create the packet
+                if (status == ERROR) failure = LENGTH;                                  // If error it's the string length
                 return status;                                                          // Returns the status
             }
             case GMSG -> {
                 var status = processTwoString(bb);                                              // Tries to read two strings
+                if (status == ERROR) failure = LENGTH;                                          // If error it's the string's length
                 if (status == DONE) packet = makeGeneralMessagePacket(element, reader.get());   // If success create the packet
                 return status;                                                                  // Returns the status
             }
             case DMSG -> {
                 var status = processTwoString(bb);                                              // Tries to read two strings
+                if (status == ERROR) failure = LENGTH;                                          // If error it's the string's length
                 if (status == DONE) packet = makeDirectMessagePacket(element, reader.get());    // If success create the packet
                 return status;                                                                  // Returns the status
             }
             case CP -> {
-                var status = reader.process(bb);                                            // Tries to read two strings
+                var status = reader.process(bb);                                            // Tries to read a string
+                if (status == ERROR) failure = LENGTH;                                      // If error it's the string's length
                 if (status == DONE) packet = makePrivateConnectionPacket(reader.get());     // If success create the packet
                 return status;                                                              // Returns the status
             }
@@ -102,13 +113,16 @@ public class PacketReader implements Reader<Packet> {
                     bb.compact();                       // Back to write-mode
                     token = buff.flip().getInt();       // Get int
                 }
-                var status = reader.process(bb);        // Tries read String
+                var status = reader.process(bb);        // Tries read a string
+                if (status == ERROR) failure = LENGTH;  // If error it's the string's length
                 if (status == DONE)                     // Success -> create packet
                     packet = makeTokenPacket(token, reader.get());
                 return status;                          // All case -> return status
             }
         }
-        return ERROR; // Shouldn't happen
+        // Shouldn't happen
+        failure = CODE;
+        return ERROR;
     }
 
     private ProcessStatus processTwoString(ByteBuffer bb) {
@@ -134,11 +148,15 @@ public class PacketReader implements Reader<Packet> {
             errorCode = bb.get();
             bb.compact();
         }
-        if (errorCode != REJECTED.ordinal())
-            return (packet = makeErrorPacket(errorCode)) == null ? ERROR : DONE;
+        if (errorCode != REJECTED.ordinal()) {
+            if ((packet = makeErrorPacket(errorCode)) != null) return DONE;
+            failure = CODE;
+            return ERROR;
+        }
 
         // If the code is REJECTED
         var status = reader.process(bb);        // Tries to read a string
+        if (status == ERROR) failure = LENGTH;  // If error it's the string's length
         if (status != DONE) return status;      // If not successful return the status
         element = reader.get();                 // Otherwise take the element
         packet = makeRejectedPacket(element);   // Creates a REJECTED packet
@@ -163,6 +181,7 @@ public class PacketReader implements Reader<Packet> {
     @Override
     public void reset() {
         status = REFILL;
+        failure = null;
         reader.reset();
         element = null;
         errorCode = -1;
@@ -170,5 +189,10 @@ public class PacketReader implements Reader<Packet> {
         buff.clear();
         type = null;
         token = -1;
+    }
+
+    public ProcessFailure getFailure() {
+        if (status != ERROR) throw new IllegalStateException("Cannot get failure if not failed");
+        return failure;
     }
 }

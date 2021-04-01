@@ -8,45 +8,122 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.LinkedList;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
+import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makePrivateConnectionPacket;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onMessageReceived;
-import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
-import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
+import static fr.uge.net.tcp.nonblocking.Packet.PacketType.AUTH;
+import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
+import static java.util.Objects.requireNonNull;
 
-public class ServerClientOS {
-
+public class ServerChatOS {
     private class Context {
-        final private LinkedList<ByteBuffer> queue = new LinkedList<>();
-        final private ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_SIZE);
-        final private ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_SIZE);
+        private final LinkedList<ByteBuffer> queue = new LinkedList<>();
+        private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_SIZE);
+        private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_SIZE);
         private final PacketReader reader = new PacketReader();
-        final private SelectionKey key;
-        final private SocketChannel sc;
+        private final ServerMessageDisplay display;
+        private final SelectionKey key;
+        private final SocketChannel sc;
         private boolean closed = false;
+        private boolean rejecting = false;      // Set to true after an error. Imply that all read packet are not treated
+        private boolean authenticated = false;
+        private String pseudo = null;
 
         private Context(SelectionKey key){
-            this.sc = (SocketChannel) key.channel();
             this.key = key;
+            sc = (SocketChannel) key.channel();
+            display = new ServerMessageDisplay(sc);
         }
         private void processIn() {
-            var status = reader.process(bbIn);
-            if (status == REFILL) return;
-            if (status == DONE) {
-                onMessageReceived(reader.get(), "Server");
-                if (reader.get().type() == Packet.PacketType.AUTH) {
-                    queueMessage(makeAuthenticationPacket(reader.get().pseudo()));
+            // Todo : improve reject of message after error reception
+            var status = reader.process(bbIn);      // Process Input
+            if (status == REFILL) return;           // If not full -> stop
+            if (status == ERROR) {                  // On error
+                if (!rejecting) {                   // If first error -> send error packet
+                    display.onErrorProcessed();
+                    sendError();
                 }
+                rejecting = true;                   // reject all other packet (correct or incorrect)
             }
+            if (status == DONE)
+                treatPacket(reader.get());
             reader.reset();
         }
+        private void sendError() {
+            switch (reader.getFailure()) {
+                case CODE -> queue.add(makeErrorPacket(WRONG_CODE).toBuffer().flip());
+                case LENGTH -> queue.add(makeErrorPacket(INVALID_LENGTH).toBuffer().flip());
+                default -> throw new IllegalStateException("Unexpected value: " + reader.getFailure());
+            }
+        }
+        private void treatPacket(Packet packet) {
+            display.onPacketReceived(packet, rejecting, authenticated);
+            if (rejecting) {                            // If rejecting
+                if (packet.code() == ERROR_RECOVER) {   // But the errorCode is ERROR_RECOVER
+                    display.onRecover();
+                    rejecting = false;                  // Stops rejecting
+                }
+                return;
+            }
+            if (!authenticated && packet.type() == AUTH) {
+                pseudo = packet.pseudo();               // Save pseudo (not used until authenticated)
+                if (!clients.containsKey(pseudo)) {     // If no client with that pseudo
+                    clients.put(pseudo, this);          // Add this one
+                    display.setPseudo(pseudo);
+                    authenticated = true;               // Set authenticated
+                } else {    // Cannot use queueMessage because not authenticated
+                    queue.add(makeErrorPacket(AUTH_ERROR).toBuffer().flip());
+                }
+                return;
+            }
+            switch (packet.type()) {
+                case ERR -> {
+                    switch (packet.code()) {
+                        case AUTH_ERROR, DEST_ERROR, OTHER -> {} // Impossible
+                        case WRONG_CODE, INVALID_LENGTH -> {} // Server internal Error
+                        case ERROR_RECOVER -> {} // Received when not rejecting -> Impossible/Ignore
+                        case REJECTED -> {
+                            var key = new PCKey(pseudo, packet.pseudo());
+                            if (pendingCP.contains(key)) {  // If pending request -> accept
+                                pendingCP.remove(key);
+                                if (clients.containsKey(packet.pseudo()))
+                                    clients.get(packet.pseudo()).queueMessage(makeRejectedPacket(pseudo));
+                            }
+                            // If no pending request -> Impossible/Ignore
+                        }
+                    }
+                }
+                case AUTH -> {} // Received when already authenticated -> Impossible/Ignore
+                case GMSG -> broadcast(makeGeneralMessagePacket(packet.message(), packet.pseudo()));
+                case DMSG -> {
+                    if (!clients.containsKey(packet.pseudo())) {
+                        queueMessage(makeErrorPacket(DEST_ERROR));
+                    } else {
+                        clients.get(packet.pseudo()).queueMessage(makeDirectMessagePacket(packet.message(), pseudo));
+                    }
+                }
+                case CP -> {
+                    var key = new PCKey(pseudo, packet.pseudo());
+                    if (pendingCP.contains(key)) {  // Client B accept the connection
+                        pendingCP.remove(key);
+                        int token = new Random().nextInt();
+                        privateCP.put(key, "tmp");
+                        queueMessage(makeTokenPacket(token, packet.pseudo()));
+                        clients.get(packet.pseudo()).queueMessage(makeTokenPacket(token, pseudo));
+                    } else {
+                        pendingCP.add(key);
+                    }
+                }
+                case TOKEN -> {} // Should not happen.
+            }
+        }
         private void queueMessage(Packet msg) {
+            if (!authenticated) return;         // If not authenticated cannot receive message
             queue.add(msg.toBuffer().flip());
             processOut();
             updateInterestOps();
@@ -89,16 +166,52 @@ public class ServerClientOS {
         }
     }
 
-    static private final Logger logger = Logger.getLogger(ServerClientOS.class.getName());
+    /**
+     * Record that represents a key for a private connection between
+     * {@link #client1} and {@link #client2}. The two clients can be in any order.
+     * In other words, this code should print "Correct":
+     * <blockquote><pre>
+     * var key1 = new PCKey("foo", "bar");
+     * var key2 = new PCKey("bar", "foo");
+     * if (key1.equals(key2)) {             // Should be true
+     *     System.out.println("Correct");
+     * }</pre></blockquote>
+     */
+    private static record PCKey(String client1, String client2) {
+        PCKey {
+            requireNonNull(client1);
+            requireNonNull(client2);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            PCKey pcKey = (PCKey) o;
+            return client1.equals(pcKey.client1) ? client2.equals(pcKey.client2) :
+                    client1.equals(pcKey.client2) && client2.equals(pcKey.client1);
+        }
+
+        @Override
+        public int hashCode() {
+            return client1.hashCode() + client2.hashCode();
+        }
+    }
+
+
+    static private final Logger logger = Logger.getLogger(ServerChatOS.class.getName());
     static private final int BUFFER_SIZE = 1_024;
 
     private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
     private final AtomicInteger counter = new AtomicInteger(1);
+    private final HashMap<PCKey, String> privateCP = new HashMap<>();   // Todo : Change String to a context
+    private final HashMap<String, Context> clients = new HashMap<>();
+    private final HashSet<PCKey> pendingCP = new HashSet<>();
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
     private final Thread console;
 
-    public ServerClientOS(int port) throws IOException {
+    public ServerChatOS(int port) throws IOException {
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.bind(new InetSocketAddress(port));
         selector = Selector.open();
@@ -131,7 +244,7 @@ public class ServerClientOS {
             case "TOKEN" -> broadcast(makeTokenPacket(10, "other"));
             case "AERR" -> broadcast(makeErrorPacket(Packet.ErrorCode.AUTH_ERROR));
             case "DERR" -> broadcast(makeErrorPacket(Packet.ErrorCode.DEST_ERROR));
-            case "EREC" -> broadcast(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER));
+            case "EREC" -> broadcast(makeErrorPacket(ERROR_RECOVER));
             case "WCOD" -> broadcast(makeErrorPacket(Packet.ErrorCode.WRONG_CODE));
             case "REJ" -> broadcast(makeRejectedPacket("Server"));
             case "INV" -> broadcast(makeErrorPacket(Packet.ErrorCode.INVALID_LENGTH));
@@ -226,10 +339,10 @@ public class ServerClientOS {
             usage();
             return;
         }
-        new ServerClientOS(Integer.parseInt(args[0])).launch();
+        new ServerChatOS(Integer.parseInt(args[0])).launch();
     }
 
     private static void usage(){
-        System.out.println("Usage : ServerClientOS port");
+        System.out.println("Usage : ServerChatOS port");
     }
 }

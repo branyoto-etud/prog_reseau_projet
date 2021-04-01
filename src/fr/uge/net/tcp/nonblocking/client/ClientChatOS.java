@@ -61,6 +61,7 @@ public class ClientChatOS {
                 case CP -> {
                     // If there is no pending connection, this is the client B
                     if (!pendingConnection.containsKey(packet.pseudo())) waiting = packet.pseudo();
+                    // Otherwise wait for a TOKEN packet
                 }
                 case TOKEN -> {
                     var ctx = createPrivateConnection(packet.pseudo());
