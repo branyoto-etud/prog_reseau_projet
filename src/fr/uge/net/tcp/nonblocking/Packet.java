@@ -184,7 +184,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * and if the packet has been sent by the client, the pseudo represent the destination.
      *
      * <pre>
-     *   byte  integer   string (utf-8)    integer   string (utf-8)
+     *   byte  integer   string (utf-8)   integer   string (utf-8)
      * -------------------------------------------------------------
      * |  3  | length |     message     | length |     pseudo      |
      * ------------------------------------------------------------- </pre>
@@ -223,10 +223,10 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * Create a buffer containing the token for a private connection.
      * Only the server can send this type of packet.
      * <pre>
-     *   byte  integer
-     * -----------------
-     * |  5  |  token  |
-     * ----------------- </pre>
+     *    byte   integer   integer string (utf-8)
+     * -------------------------------------------
+     * |   5   |  token  | length |    pseudo    |
+     * ------------------------------------------- </pre>
      */
     private ByteBuffer tokenToBuffer() {
         var pseudoBuffer = UTF_8.encode(pseudo);

@@ -235,7 +235,7 @@ Codes d'erreur
    Valeur | Signification
         0 | Erreur d'authentification. (AUTH_ERROR)
         1 | Erreur de destinataire. (DEST_ERROR)
-        2 | Connection rejetée. (REJECT)
+        2 | Connection rejetée + pseudo. (REJECT)
         3 | Erreur de code. (WRONG_CODE)
         4 | Longueur invalide. (INVALID_LENGTH)
         5 | Récupération d'erreur. (ERROR_RECOVER)
