@@ -1,11 +1,10 @@
 package fr.uge.net.tcp.nonblocking.client;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
@@ -24,7 +23,6 @@ public class PrivateConnectionContext implements Context {
     private final String other;
     private boolean accepted;
     private boolean closed;
-    private int token;
 
     public PrivateConnectionContext(String other, SelectionKey key) {
         this.other = requireNonNull(other);
@@ -37,7 +35,6 @@ public class PrivateConnectionContext implements Context {
      * Initiate the connection to the server.
      */
     public void launch(int token) {
-        this.token = token;
         accepted = true;
         queue.add(makeTokenPacket(token, other).toBuffer());
         processOut();
@@ -45,10 +42,11 @@ public class PrivateConnectionContext implements Context {
     }
     private void processIn() {
         // Todo : Read HTTP content
+        System.out.println(StandardCharsets.UTF_8.decode(bbIn).toString());
     }
-    public void queueMessage(String msg) throws IOException {
+    public void queueMessage(String msg) {
         // Todo : Convert msg to HTTP
-        queue.add(ByteBuffer.allocate(1));
+        queue.add(StandardCharsets.UTF_8.encode(msg).compact());
         processOut();
         updateInterestOps();
     }
