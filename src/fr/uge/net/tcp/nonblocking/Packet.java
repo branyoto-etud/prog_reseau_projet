@@ -6,17 +6,16 @@ import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public final record Packet(PacketType type, ErrorCode code, String message, String pseudo) {
-    public Packet {
-        throw new IllegalStateException("Cannot create a Packet using constructor! Use PacketBuilder instead.");
-    }
     public static class PacketBuilder {
         /**
          * Create an error packet with the given error code.
          * @param code the error code.
-         * @return a new error packet if {@code code} is between 0 and {@code ErrorCode.values().length} and null otherwise.
+         * @return a new error packet if {@code code} is different to {@link ErrorCode#REJECTED} and
+         * between 0 and {@code ErrorCode.values().length} and null otherwise.
          */
         public static Packet makeErrorPacket(byte code) {
-            if (code < 0 || code >= ErrorCode.values().length) return null;
+            if (code < 0 || code >= ErrorCode.values().length || code == ErrorCode.REJECTED.ordinal())
+                return null;
             return new Packet(PacketType.ERR, ErrorCode.values()[code], null, null);
         }
         /**
@@ -44,16 +43,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
         public static Packet makeAuthenticationPacket(String pseudo) {
             if (pseudo == null) return null;
             return new Packet(PacketType.AUTH, null, null, pseudo);
-        }
-        /**
-         * Create a general message packet with the given message.
-         * Only send by the client.
-         * @param message the message to send.
-         * @return a new general message packet or null if {@code message} is null.
-         */
-        public static Packet makeGeneralMessagePacket(String message) {
-            if (message == null) return null;
-            return new Packet(PacketType.GMSG, null, message, null);
         }
         /**
          * Create a general message packet with the given message from {@code pseudo}.
@@ -147,7 +136,15 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * @see ErrorCode
      */
     private ByteBuffer errToBuffer() {
-        return ByteBuffer.allocate(2).put((byte) type.ordinal()).put((byte) code.ordinal());
+        if (code != ErrorCode.REJECTED) return ByteBuffer.allocate(2).put((byte) type.ordinal()).put((byte) code.ordinal());
+
+        var pseudoBuff = UTF_8.encode(pseudo);
+        var length = checkLength(pseudoBuff.remaining());
+        return ByteBuffer.allocate(Byte.BYTES * 2 + Integer.BYTES + length)
+                .put((byte) type.ordinal())
+                .put((byte) code.ordinal())
+                .putInt(length)
+                .put(pseudoBuff);
     }
     /**
      * Create a buffer containing the packet for an authentication.
@@ -243,16 +240,20 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * ----------------- </pre>
      */
     private ByteBuffer tokenToBuffer() {
-        return ByteBuffer.allocate(Byte.BYTES + Integer.BYTES)
+        var pseudoBuffer = UTF_8.encode(pseudo);
+        var length = checkLength(pseudoBuffer.remaining());
+        return ByteBuffer.allocate(Byte.BYTES + Integer.BYTES * 2 + length)
                 .put((byte) PacketType.TOKEN.ordinal())
-                .putInt(Integer.parseInt(message));
+                .putInt(Integer.parseInt(message))
+                .putInt(length)
+                .put(pseudoBuffer);
     }
     /**
      * Display the packet in the standard output.
      */
-    public void display() {
+    public void display(String userName) {
         switch (type) {
-            case ERR -> onErrorReceived(code, pseudo);
+            case ERR -> onErrorReceived(code, pseudo == null ? userName : pseudo);
             case AUTH -> onAuthSuccess(pseudo);
             case GMSG -> onGeneralMessageReceived(pseudo, message);
             case DMSG -> onDirectMessageReceived(pseudo, message);

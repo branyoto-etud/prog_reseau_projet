@@ -19,6 +19,7 @@ public class ClientPacketReader implements Reader<Packet> {
     private Packet packet = null;
     private String element = null;
     private byte errorCode = -1;
+    private int token = -1;
 
     /**
      * Processes the buffer and extracts a byte (the type of the packet).
@@ -52,7 +53,11 @@ public class ClientPacketReader implements Reader<Packet> {
     public ProcessStatus process(ByteBuffer bb) {
         requireNonNull(bb);
         if (status != REFILL) throw new IllegalStateException();
-        status = subProcess(bb);
+        if (!bb.flip().hasRemaining()) {
+            bb.compact();
+            return REFILL;
+        }
+        status = subProcess(bb.compact());
         return status;
     }
 
@@ -66,9 +71,7 @@ public class ClientPacketReader implements Reader<Packet> {
 
         switch (type) {
             case ERR -> {
-                var status = processError(bb.flip());
-                bb.compact();
-                return status;
+                return processError(bb);
             }
             case AUTH -> {
                 var status = reader.process(bb);                                        // Tries to read a string
@@ -91,9 +94,18 @@ public class ClientPacketReader implements Reader<Packet> {
                 return status;                                                              // Returns the status
             }
             case TOKEN -> {
-                if (moveData(bb.flip(), buff)) return REFILL;   // Tries to read an int
-                bb.compact();                                   // Go back in write-mode
-
+                if (token == -1) {
+                    if (moveData(bb.flip(), buff)) {    // Tries to read an int
+                        bb.compact();                   // Back to write-mode
+                        return REFILL;                  // Need REFILL
+                    }
+                    bb.compact();                       // Back to write-mode
+                    token = buff.flip().getInt();       // Get int
+                }
+                var status = reader.process(bb);        // Tries read String
+                if (status == DONE)                     // Success -> create packet
+                    packet = makeTokenPacket(token, reader.get());
+                return status;                          // All case -> return status
             }
         }
         return ERROR; // Shouldn't happen
@@ -110,20 +122,28 @@ public class ClientPacketReader implements Reader<Packet> {
     }
 
     /**
-     * @param bb buffer in read-mode.
+     * @param bb buffer in write-mode.
      * @return the current status of the reader.
      */
     private ProcessStatus processError(ByteBuffer bb) {
-        if (!bb.hasRemaining()) return REFILL;      // Stop if nothing to read
-        if (errorCode == -1) errorCode = bb.get();  // If the code has not been read yet
-        if (errorCode == REJECTED.ordinal()) {      // If the code is REJECTED
-            var status = reader.process(bb);        // Tries to read a string
-            if (status != DONE) return status;      // If not successful return the status
-            element = reader.get();                 // Otherwise take the element
-            packet = makeRejectedPacket(element);   // Creates a REJECTED packet
-            return DONE;                            // Returns DONE
+        if (errorCode == -1) {
+            if (!bb.flip().hasRemaining()) {
+                bb.compact();
+                return REFILL;
+            }
+            errorCode = bb.get();
+            bb.compact();
         }
-        return (packet = makeErrorPacket(bb.get())) == null ? ERROR : DONE;
+        if (errorCode != REJECTED.ordinal()) {
+            return (packet = makeErrorPacket(errorCode)) == null ? ERROR : DONE;
+        }
+
+        // If the code is REJECTED
+        var status = reader.process(bb);        // Tries to read a string
+        if (status != DONE) return status;      // If not successful return the status
+        element = reader.get();                 // Otherwise take the element
+        packet = makeRejectedPacket(element);   // Creates a REJECTED packet
+        return DONE;
     }
 
     /**
@@ -150,5 +170,6 @@ public class ClientPacketReader implements Reader<Packet> {
         packet = null;
         buff.clear();
         type = null;
+        token = -1;
     }
 }

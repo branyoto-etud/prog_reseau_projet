@@ -19,7 +19,6 @@ import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeGeneralMessagePacket;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
@@ -31,11 +30,15 @@ public class ClientChatOS {
         private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
         private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
         private final ClientPacketReader reader = new ClientPacketReader();
-        private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Stored buffer are in write-mode
+        private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Stored buffer are in read-mode
         private final SelectionKey key;
         private final SocketChannel sc;
+        private String waiting = null;      // Todo : Rename when better name found (represents a client
+                                            //  trying to make a private connection that we need to answers
+                                            //  by blocking all messages until we read 'y' or 'n')
         private boolean connected;
         private boolean closed;
+        private String pseudo;
 
         public MainContext(SelectionKey key_){
             sc = (SocketChannel) key_.channel();
@@ -44,71 +47,78 @@ public class ClientChatOS {
             key = key_;
         }
         private void processIn() throws IOException {
-            // TODO : Try to reconnect on error to avoid having multiple problems
             var status = reader.process(bbIn);              // Processes the buffer
             if (status == REFILL) return;                   // If needs refill -> stop
             if (status == DONE) treatPacket(reader.get());  // If done -> treats the packet
             reader.reset();                                 // Resets the buffer
         }
         private void treatPacket(Packet packet) throws IOException {
-            onMessageReceived(packet);
+            onMessageReceived(packet, pseudo);
             switch (packet.type()) {
-                case ERR -> treatError(packet.code());  // Do an action on error
-                case AUTH -> connected = true;          // Validate connection
-                case GMSG, DMSG -> {}                   // Only need to be displayed (already done)
+                case ERR -> treatError(packet);     // Do an action on error
+                case AUTH -> connected = true;      // Validate connection
+                case GMSG, DMSG -> {}               // Only need to be displayed (already done)
                 case CP -> {
-                    getPrivateConnection(packet.pseudo());
-                    waiting = packet.pseudo();
+                    // If there is no pending connection, this is the client B
+                    if (!pendingConnection.containsKey(packet.pseudo())) waiting = packet.pseudo();
                 }
-                case TOKEN -> {                         // Todo : pass it to the correct private connection
-                    var ctx = getPrivateConnection(packet.pseudo());
+                case TOKEN -> {
+                    var ctx = createPrivateConnection(packet.pseudo());
                     ctx.launch(parseInt(packet.message()));
+                    if (pendingConnection.containsKey(packet.pseudo())) {
+                        ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
+                    }
                 }
             }
         }
-        private void treatError(Packet.ErrorCode code) {
-            switch (code) {
-                case AUTH_ERROR, DEST_ERROR -> {}   // Nothing
-                case REJECTED -> {                  // Todo: pass it to the correct private connection
-                }
-                case ERROR_RECOVER -> {}            // Should not happen
-                case WRONG_CODE, INVALID_LENGTH, OTHER -> // When receiving one of these error need to send a ERROR_RECOVERY
-                        queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
-                default -> {}  // Nothing
+        private void treatError(Packet packet) {
+            switch (packet.code()) {
+                case AUTH_ERROR, DEST_ERROR -> {}
+                case REJECTED -> pendingConnection.remove(packet.pseudo());
+                case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
+                case WRONG_CODE, INVALID_LENGTH, OTHER ->
+                        queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer().flip());
             }
         }
-        public void queueMessage(String msg) throws IOException {
+        public void queueMessage(String msg) {
             if (waiting != null) {
                 whileWaiting(msg);
-                return;
+            } else {
+                queue.add(parseInput(msg).toBuffer().flip());
             }
-            queue.add(parseInput(msg).toBuffer());
             processOut();
             updateInterestOps();
         }
         private void whileWaiting(String msg) {
             if (msg.toLowerCase().startsWith("y")) {
-                queue.add(makePrivateConnectionPacket(waiting).toBuffer());
+                queue.add(makePrivateConnectionPacket(waiting).toBuffer().flip());
                 waiting = null;
             } else if (msg.toLowerCase().startsWith("n")) {
-                queue.add(makeRejectedPacket(waiting).toBuffer());
+                queue.add(makeRejectedPacket(pseudo).toBuffer().flip());
                 waiting = null;
             }
         }
-        private Packet parseInput(String msg) throws IOException {
-            if (!connected) return makeAuthenticationPacket(msg);
+        private Packet parseInput(String msg) {
+            if (!connected) {
+                pseudo = msg;
+                return makeAuthenticationPacket(msg);
+            }
 
             if (msg.startsWith("@")) {
                 var tokens = msg.substring(1).split(" ", 2);
-                return makeDirectMessagePacket(tokens[0], tokens[1]);
+                return makeDirectMessagePacket(tokens[1], tokens[0]);
             }
             if (msg.startsWith("/")) {
                 var tokens = msg.substring(1).split(" ", 2);
-                getPrivateConnection(tokens[0]).queueMessage(tokens[1]);
+                if (privateConnections.containsKey(tokens[0])) {        // Already connected to that client
+                    privateConnections.get(tokens[0]).queueMessage(tokens[1]);
+                } else {
+                    pendingConnection.put(tokens[0], tokens[1]);
+                }
                 return makePrivateConnectionPacket(tokens[0]);
             }
             return msg.startsWith("\\@") || msg.startsWith("\\/") ?
-                    makeGeneralMessagePacket(msg.substring(1)) : makeGeneralMessagePacket(msg);
+                    makeGeneralMessagePacket(msg.substring(1), pseudo) : makeGeneralMessagePacket(msg, pseudo);
         }
         private void processOut() {
             while (!queue.isEmpty()){                                       // While there is a message
@@ -120,8 +130,8 @@ public class ClientChatOS {
             var op=0;
             if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
             if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
-            if (op==0)                          silentlyClose(sc);              // If there's nothing to read nor write
-            key.interestOps(op);
+            if (op != 0) key.interestOps(op);
+            else silentlyClose(sc);                                             // If there's nothing to read nor write
         }
         @Override
         public void doRead() throws IOException {
@@ -141,24 +151,23 @@ public class ClientChatOS {
             try {
                 if (!sc.finishConnect()) return;
                 onConnectSuccess();
-                key.interestOps(SelectionKey.OP_WRITE);
+                key.interestOps(SelectionKey.OP_READ);
             } catch (IOException ioe) {
                 onConnectFail();
                 throw ioe;
             }
         }
     }
-
     private static final Logger logger = Logger.getLogger(ClientChatOS.class.getName());
 
     private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
     private final HashMap<String, PrivateConnectionContext> privateConnections = new HashMap<>();
+    private final HashMap<String, String> pendingConnection = new HashMap<>();
     private final InetSocketAddress serverAddress;
     private final Selector selector;
     private MainContext mainContext;
     private final SocketChannel sc;
     private final String repertory;
-    private String waiting = null;
     private final Thread console;
 
     public ClientChatOS(InetSocketAddress serverAddress, String repertory) throws IOException {
@@ -169,9 +178,8 @@ public class ClientChatOS {
         sc = SocketChannel.open();
         sc.configureBlocking(false);
     }
-
     private void consoleRun() {
-        try (var scan = new Scanner(System.in)){
+        try (var scan = new Scanner(System.in)){    // Todo : Possible use of BufferedReader to avoid System.exit();
             while (scan.hasNextLine()) {
                 sendCommand(scan.nextLine());
             }
@@ -181,17 +189,6 @@ public class ClientChatOS {
             logger.info("Console thread stopping!");
         }
     }
-    private PrivateConnectionContext getPrivateConnection(String pseudo) throws IOException {
-        if (privateConnections.containsKey(pseudo))
-            return privateConnections.get(pseudo);
-        var pc = SocketChannel.open();
-        pc.configureBlocking(false);
-        var key = pc.register(selector, SelectionKey.OP_CONNECT);
-        var context = (PrivateConnectionContext) key.attach(new PrivateConnectionContext(pseudo, key));
-        pc.connect(serverAddress);
-        privateConnections.put(pseudo, context);
-        return context;
-    }
     private void sendCommand(String msg) throws IOException {
         if (msg.isBlank()) return;
         synchronized (commandQueue) {
@@ -199,15 +196,27 @@ public class ClientChatOS {
             selector.wakeup();
         }
     }
-    private void processCommands() throws IOException {
+    private void processCommands() {
         synchronized (commandQueue) {
             if (commandQueue.isEmpty()) return;
             mainContext.queueMessage(commandQueue.remove());
         }
     }
+    private PrivateConnectionContext createPrivateConnection(String pseudo) throws IOException {
+        var pc = SocketChannel.open();
+        pc.configureBlocking(false);
+        var key = pc.register(selector, SelectionKey.OP_CONNECT);
+        var context = new PrivateConnectionContext(pseudo, key);
+        key.attach(context);
+        pc.connect(serverAddress);
+        privateConnections.put(pseudo, context);
+        return context;
+    }
     public void launch() throws IOException {
         var key = sc.register(selector, SelectionKey.OP_CONNECT);
-        mainContext = (MainContext) key.attach(new MainContext(key));
+        mainContext = new MainContext(key);
+        key.attach(mainContext);
+
         sc.connect(serverAddress);
         console.start();
 
@@ -218,7 +227,7 @@ public class ClientChatOS {
             } catch (UncheckedIOException tunneled) {
                 console.interrupt();
                 silentlyClose(key.channel());
-                throw tunneled.getCause();
+                System.exit(-1);
             }
         }
     }
