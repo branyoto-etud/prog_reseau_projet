@@ -1,7 +1,7 @@
 package fr.uge.net.tcp.nonblocking.server;
 
 import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.reader.ClientPacketReader;
+import fr.uge.net.tcp.nonblocking.reader.PacketReader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,7 +26,7 @@ public class ServerClientOS {
         final private LinkedList<ByteBuffer> queue = new LinkedList<>();
         final private ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_SIZE);
         final private ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_SIZE);
-        private final ClientPacketReader reader = new ClientPacketReader();
+        private final PacketReader reader = new PacketReader();
         final private SelectionKey key;
         final private SocketChannel sc;
         private boolean closed = false;

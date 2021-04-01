@@ -1,7 +1,7 @@
 package fr.uge.net.tcp.nonblocking.client;
 
 import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.reader.ClientPacketReader;
+import fr.uge.net.tcp.nonblocking.reader.PacketReader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -29,7 +29,7 @@ public class ClientChatOS {
     private class MainContext implements Context {
         private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
         private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final ClientPacketReader reader = new ClientPacketReader();
+        private final PacketReader reader = new PacketReader();
         private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Stored buffer are in read-mode
         private final SelectionKey key;
         private final SocketChannel sc;
