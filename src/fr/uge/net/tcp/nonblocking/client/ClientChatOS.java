@@ -68,6 +68,7 @@ public class ClientChatOS {
                     ctx.launch(parseInt(packet.message()));
                     if (pendingConnection.containsKey(packet.pseudo())) {
                         ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
+                        privateConnections.put(packet.pseudo(), ctx);
                     }
                 }
             }
@@ -77,8 +78,11 @@ public class ClientChatOS {
                 case AUTH_ERROR, DEST_ERROR -> {}
                 case REJECTED -> pendingConnection.remove(packet.pseudo());
                 case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
-                case WRONG_CODE, INVALID_LENGTH, OTHER ->
-                        queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer().flip());
+                case WRONG_CODE, INVALID_LENGTH, OTHER -> {
+                    queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer().flip());
+                    processOut();
+                    updateInterestOps();
+                }
             }
         }
         public void queueMessage(String msg) {
@@ -95,7 +99,7 @@ public class ClientChatOS {
                 queue.add(makePrivateConnectionPacket(waiting).toBuffer().flip());
                 waiting = null;
             } else if (msg.toLowerCase().startsWith("n")) {
-                queue.add(makeRejectedPacket(pseudo).toBuffer().flip());
+                queue.add(makeRejectedPacket(waiting).toBuffer().flip());
                 waiting = null;
             }
         }
@@ -104,7 +108,6 @@ public class ClientChatOS {
                 pseudo = msg;
                 return makeAuthenticationPacket(msg);
             }
-
             if (msg.startsWith("@")) {
                 var tokens = msg.substring(1).split(" ", 2);
                 return makeDirectMessagePacket(tokens[1], tokens[0]);

@@ -248,7 +248,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             case GMSG -> onGeneralMessageReceived(pseudo, message);
             case DMSG -> onDirectMessageReceived(pseudo, message);
             case CP -> onPrivateConnectionReceived(pseudo);
-            case TOKEN -> System.out.println("The token is : " + message);
+            case TOKEN -> onTokenReceived(message);
         }
     }
 }

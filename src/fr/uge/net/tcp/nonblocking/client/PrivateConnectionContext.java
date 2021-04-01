@@ -17,7 +17,7 @@ import static java.util.Objects.requireNonNull;
 public class PrivateConnectionContext implements Context {
     private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
     private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-    private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Buffer are in write-mode
+    private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Buffer are in read-mode
     private final SocketChannel sc;
     private final SelectionKey key;
     private final String other;
@@ -36,7 +36,8 @@ public class PrivateConnectionContext implements Context {
      */
     public void launch(int token) {
         accepted = true;
-        queue.add(makeTokenPacket(token, other).toBuffer());
+        System.out.println("launch");
+        queue.add(makeTokenPacket(token, other).toBuffer().flip());
         processOut();
         updateInterestOps();
     }
@@ -46,23 +47,28 @@ public class PrivateConnectionContext implements Context {
     }
     public void queueMessage(String msg) {
         // Todo : Convert msg to HTTP
+        System.out.println(msg);
         queue.add(StandardCharsets.UTF_8.encode(msg).compact());
         processOut();
         updateInterestOps();
     }
     private void processOut() {
-        if (!accepted) return;
+        System.out.println("processOut " + queue.size());
         while (!queue.isEmpty()){                                       // While there is a message
+            System.out.println(queue.peek());
+            System.out.println(bbOut);
             if (queue.peek().remaining() > bbOut.remaining()) break;    // Gets it and break if not enough room in buffOut
             bbOut.put(queue.remove());                                  // Otherwise -> add into buffOut
+            System.out.println("Passed " + queue.size());
         }
+        System.out.println(bbOut);
     }
     private void updateInterestOps() {
         var op=0;
         if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
         if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
         if (op==0)                          silentlyClose(sc);              // If there's nothing to read nor write
-        key.interestOps(op);
+        else                                key.interestOps(op);
     }
     @Override
     public void doRead() throws IOException {
@@ -72,6 +78,8 @@ public class PrivateConnectionContext implements Context {
     }
     @Override
     public void doWrite() throws IOException {
+        System.out.println("----------------SENDING----------------");
+        System.out.println(bbOut);
         sc.write(bbOut.flip());
         bbOut.compact();
         processOut();

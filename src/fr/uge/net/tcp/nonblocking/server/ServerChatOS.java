@@ -10,12 +10,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makePrivateConnectionPacket;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketType.AUTH;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.util.Objects.requireNonNull;
@@ -42,16 +40,22 @@ public class ServerChatOS {
         private void processIn() {
             // Todo : improve reject of message after error reception
             var status = reader.process(bbIn);      // Process Input
+            System.out.println(status);
             if (status == REFILL) return;           // If not full -> stop
             if (status == ERROR) {                  // On error
                 if (!rejecting) {                   // If first error -> send error packet
                     display.onErrorProcessed();
                     sendError();
+                    processOut();
+                    updateInterestOps();
                 }
                 rejecting = true;                   // reject all other packet (correct or incorrect)
             }
-            if (status == DONE)
+            if (status == DONE) {
                 treatPacket(reader.get());
+                processOut();
+                updateInterestOps();
+            }
             reader.reset();
         }
         private void sendError() {
@@ -76,8 +80,11 @@ public class ServerChatOS {
                     clients.put(pseudo, this);          // Add this one
                     display.setPseudo(pseudo);
                     authenticated = true;               // Set authenticated
+                    queue.add(makeAuthenticationPacket(pseudo).toBuffer().flip());
                 } else {    // Cannot use queueMessage because not authenticated
                     queue.add(makeErrorPacket(AUTH_ERROR).toBuffer().flip());
+                    processOut();
+                    updateInterestOps();
                 }
                 return;
             }
@@ -108,6 +115,10 @@ public class ServerChatOS {
                     }
                 }
                 case CP -> {
+                    if (!clients.containsKey(packet.pseudo())) {
+                        queueMessage(makeErrorPacket(DEST_ERROR));
+                        return;
+                    }
                     var key = new PCKey(pseudo, packet.pseudo());
                     if (pendingCP.contains(key)) {  // Client B accept the connection
                         pendingCP.remove(key);
@@ -117,6 +128,7 @@ public class ServerChatOS {
                         clients.get(packet.pseudo()).queueMessage(makeTokenPacket(token, pseudo));
                     } else {
                         pendingCP.add(key);
+                        clients.get(packet.pseudo()).queueMessage(makePrivateConnectionPacket(pseudo));
                     }
                 }
                 case TOKEN -> {} // Should not happen.
@@ -139,7 +151,7 @@ public class ServerChatOS {
             if (!closed && bbIn.hasRemaining()) op |= SelectionKey.OP_READ;
             if (bbOut.position() != 0)          op |= SelectionKey.OP_WRITE;
             if (op == 0) {
-                counter.decrementAndGet();
+                clients.remove(pseudo);
                 silentlyClose();
                 return;
             }
@@ -203,7 +215,6 @@ public class ServerChatOS {
     static private final int BUFFER_SIZE = 1_024;
 
     private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
-    private final AtomicInteger counter = new AtomicInteger(1);
     private final HashMap<PCKey, String> privateCP = new HashMap<>();   // Todo : Change String to a context
     private final HashMap<String, Context> clients = new HashMap<>();
     private final HashSet<PCKey> pendingCP = new HashSet<>();
@@ -237,7 +248,7 @@ public class ServerChatOS {
 
         var msg = commandQueue.remove();
         switch (msg.toUpperCase()) {
-            case "INFO" -> System.out.println(counter.get()-1 + " clients connected!");
+            case "INFO" -> System.out.println(clients.size() + " clients connected!");
             case "GMSG" -> broadcast(makeGeneralMessagePacket("Hello", "Server"));
             case "DMSG" -> broadcast(makeDirectMessagePacket("Hello", "Server"));
             case "CP" -> broadcast(makePrivateConnectionPacket("other"));
@@ -271,7 +282,7 @@ public class ServerChatOS {
 
         console.start();
 
-        while(!Thread.interrupted() && counter.get() > 0) {
+        while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
                 treatCommands();
@@ -293,16 +304,17 @@ public class ServerChatOS {
             // lambda call in select requires to tunnel IOException
             throw new UncheckedIOException(ioe);
         }
+        var ctx = (Context) key.attachment();
         try {
             if (key.isValid() && key.isWritable()) {
-                ((Context) key.attachment()).doWrite();
+                ctx.doWrite();
             }
             if (key.isValid() && key.isReadable()) {
-                ((Context) key.attachment()).doRead();
+                ctx.doRead();
             }
         } catch (IOException e) {
             logger.info("Connection closed with client due to IOException");
-            counter.decrementAndGet();
+            clients.remove(ctx.pseudo);
             silentlyClose(key);
         }
     }
@@ -314,7 +326,6 @@ public class ServerChatOS {
             logger.info("Wrong hint from selector");
             return;
         }
-        counter.incrementAndGet();
         client.configureBlocking(false);
         var clientKey = client.register(selector, SelectionKey.OP_READ);
         clientKey.attach(new Context(clientKey));

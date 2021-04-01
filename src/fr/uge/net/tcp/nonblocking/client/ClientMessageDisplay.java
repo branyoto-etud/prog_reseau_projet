@@ -7,6 +7,7 @@ import static java.util.Objects.requireNonNull;
 public class ClientMessageDisplay {
     private static final String ANSI_DARK_RED = "\u001B[38:5:88m";
     private static final String ANSI_BRIGHT_RED = "\u001B[91m";
+    private static final String ANSI_LIME = "\u001B[38:5:40m";
     private static final String ANSI_MAGENTA = "\u001B[35m";
     private static final String ANSI_YELLOW = "\u001B[93m";
     private static final String ANSI_GREEN = "\u001B[32m";
@@ -14,11 +15,11 @@ public class ClientMessageDisplay {
     private static final String ANSI_RESET = "\u001B[0m";
 
     public static void onConnectSuccess() {
-        System.out.println("Connected to the server with success.");
+        System.out.println(ANSI_LIME + "Connected to the server with success." + ANSI_RESET);
         pseudoAsk();
     }
     public static void onConnectFail() {
-        System.out.println("Connection to the server rejected!");
+        System.out.println(ANSI_BRIGHT_RED + "Connection to the server rejected!" + ANSI_RESET);
     }
     public static void onAuthSuccess(String pseudo) {
         requireNonNull(pseudo);
@@ -70,5 +71,8 @@ public class ClientMessageDisplay {
         requireNonNull(pseudo);
         System.out.print(ANSI_BRIGHT_RED + pseudo + " request a private connection. " + ANSI_RESET);
         System.out.println("Accept ? (" + ANSI_GREEN + "y" + ANSI_RESET + "/" + ANSI_DARK_RED + "n" + ANSI_RESET + ")");
+    }
+    public static void onTokenReceived(String token) {
+        System.out.println("The token is : " + ANSI_MAGENTA + token + ANSI_RESET);
     }
 }
