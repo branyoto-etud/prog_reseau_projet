@@ -132,7 +132,12 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * ---------------------
      * |   0   | errorCode |
      * --------------------- </pre>
-     *
+     * Or the following one for the packet with the error {@link ErrorCode#REJECTED}
+     * <pre>
+     *    byte      byte     integer string (utf-8)
+     * ---------------------------------------------
+     * |   0   | REJECTED  | length |    pseudo    |
+     * --------------------------------------------- </pre>
      * @see ErrorCode
      */
     private ByteBuffer errToBuffer() {
@@ -164,15 +169,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     }
     /**
      * Create a buffer containing the packet representing a message destined to everyone.
-     * Can have two representation :
-     * <ul>
-     * <li>Client to Server
-     * <pre>
-     *   byte  integer   string (utf-8)
-     * ----------------------------------
-     * |  2  | length |     message     |
-     * ---------------------------------- </pre>
-     * <li>Server to Client
      * <pre>
      *   byte  integer   string (utf-8)   integer    string (utf-8)
      * -------------------------------------------------------------
@@ -180,14 +176,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * ------------------------------------------------------------- </pre>
      */
     private ByteBuffer generalToBuffer() {
-        if (pseudo != null) return directToBuffer(); // When the server send the GMSG
-
-        var messageBuffer = UTF_8.encode(message);
-        var length = checkLength(messageBuffer.remaining());
-        return ByteBuffer.allocate(Byte.BYTES + Integer.BYTES + length)
-                .put((byte) type.ordinal())
-                .putInt(length)
-                .put(messageBuffer);
+        return directToBuffer();
     }
     /**
      * Create a buffer containing the packet representing a message destined to only one client.
@@ -250,6 +239,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     }
     /**
      * Display the packet in the standard output.
+     * @param userName the name of the current user (only used for {@link ErrorCode#AUTH_ERROR})
      */
     public void display(String userName) {
         switch (type) {

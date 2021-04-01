@@ -106,27 +106,18 @@ Résumé
 
     B. Message général (GMSG)
 
-                 1 octet    4 octets (int)    string
-                 -------------------------------------
-                |     2 | taille du message | message |
-                 -------------------------------------
-                  Figure 3-B-1: paquet GMSG (client)
-
        1 octet    4 octets (int)     string      4 octets (int)    string
        -------------------------------------------------------------------
       |     2 | taille du message |  message  | taille du pseudo | pseudo |
        -------------------------------------------------------------------
-                     Figure 3-B-2: paquet GMSG (serveur)
+                            Figure 3-B-2: paquet GMSG
 
    Ce paquet permet d'envoyer à tous les clients connecté un message.
-   Il existe deux types de GMSG, les paquets client et les paquets serveur.
-   Les paquets client contienent le code 2 suivit de la taille du packet (en octets)
-   suivit du packet.
-   Le serveur recevant ce paquet va envoyer à chaque clients connecté un paquet
-   contenant le même message suivit d'un entier (4 octets) représentant la taille
+   Les paquets GMSG contienent le code 2 suivit de la taille du message (en octets)
+   suivit du message ainsi qu'un autre entier (4 octets) représentant la taille
    du pseudo de l'expéditeur du packet qui suivra cet entier.
 
-   Le client ne reçoit pas de réponse suite à l'envoie de son message.
+   Le client ne reçoit pas de réponse suite à l'envoi de son message.
 
     C. Message direct (DMSG)
 
@@ -218,12 +209,9 @@ Formats ChatOS
            ------------------------------------
   AUTH    |    1 |  taille du pseudo |  pseudo |
            ------------------------------------
-           ------------------------------------
-  GMSG    |    2 | taille du message | message |
-  (client) ------------------------------------
            ----------------------------------------------------------------
   GMSG    |    2 | taille du message | message | taille du pseudo | pseudo |
-  (server) ----------------------------------------------------------------
+           ----------------------------------------------------------------
            ----------------------------------------------------------------
   DMSG    |    3 | taille du message | message | taille du pseudo | pseudo |
            ----------------------------------------------------------------
@@ -234,10 +222,13 @@ Formats ChatOS
            ---------------
   TOKEN   |    5 |  token |
            ---------------
-            octet   octet
+            octet   octet          4 octets        string
            ----------------
   ERROR   |    0 | ErrCode |
            ----------------
+           -----------------------------------------------
+  REJECTED|    0 | REJECTED |  taille du pseudo |  pseudo |
+           -----------------------------------------------
 
 Codes d'erreur
 
