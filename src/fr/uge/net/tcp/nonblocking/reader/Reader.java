@@ -1,6 +1,9 @@
 package fr.uge.net.tcp.nonblocking.reader;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * <p>A reader is an object that take a buffer (in write-mode) as input and
@@ -32,11 +35,14 @@ public interface Reader<T> {
      * Move data from {@code src} to {@code dest}.
      * The quantity of data taken from {@code src} depends on the remaining of each buffer.
      *
-     * @param src the input buffer. Must be in read-mode.
-     * @param dest the output buffer. Must be in write-mode.
+     * @param src the input buffer. Must be in read-mode. Cannot be null.
+     * @param dest the output buffer. Must be in write-mode. Cannot be null.
      * @return {@code true} the output is not full.
+     * @throws NullPointerException if at least one of the buffer is null.
      */
     static boolean moveData(ByteBuffer src, ByteBuffer dest) {
+        requireNonNull(src);
+        requireNonNull(dest);
         if (src.remaining()<=dest.remaining()){             // If the output buffer capacity is greater than input buffer
             dest.put(src);                                  // Reads everything
         } else {                                            // Otherwise

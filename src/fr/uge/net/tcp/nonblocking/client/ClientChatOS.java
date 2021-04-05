@@ -7,22 +7,18 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.Scanner;
+import java.nio.channels.*;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.Config.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static java.lang.Integer.parseInt;
+import static java.nio.channels.SelectionKey.*;
 import static java.util.Objects.requireNonNull;
 
 public class ClientChatOS {
@@ -109,16 +105,18 @@ public class ClientChatOS {
             }
             if (msg.startsWith("@")) {
                 var tokens = msg.substring(1).split(" ", 2);
-                return makeDirectMessagePacket(tokens[1], tokens[0]);
+                if (tokens.length == 2) return makeDirectMessagePacket(tokens[1], tokens[0]);
             }
             if (msg.startsWith("/")) {
                 var tokens = msg.substring(1).split(" ", 2);
-                if (privateConnections.containsKey(tokens[0])) {        // Already connected to that client
-                    privateConnections.get(tokens[0]).queueMessage(tokens[1]);
-                } else {
-                    pendingConnection.put(tokens[0], tokens[1]);
+                if (tokens.length == 2) {
+                    if (privateConnections.containsKey(tokens[0])) {        // Already connected to that client
+                        privateConnections.get(tokens[0]).queueMessage(tokens[1]);
+                    } else {
+                        pendingConnection.put(tokens[0], tokens[1]);
+                    }
+                    return makePrivateConnectionPacket(tokens[0]);
                 }
-                return makePrivateConnectionPacket(tokens[0]);
             }
             return msg.startsWith("\\@") || msg.startsWith("\\/") ?
                     makeGeneralMessagePacket(msg.substring(1), pseudo) : makeGeneralMessagePacket(msg, pseudo);
@@ -213,7 +211,6 @@ public class ClientChatOS {
         key.attach(context);
         pc.connect(serverAddress);
         privateConnections.put(pseudo, context);
-//        selector.wakeup();
         return context;
     }
     public void launch() throws IOException {
@@ -225,6 +222,8 @@ public class ClientChatOS {
         console.start();
 
         while(!Thread.interrupted()) {
+            if (DEBUG_KEY) printKeys();
+            if (DEBUG_KEY) System.out.println("Selection start");
             try {
                 selector.select(this::treatKey);
                 processCommands();
@@ -233,9 +232,11 @@ public class ClientChatOS {
                 silentlyClose(key.channel());
                 System.exit(-1);
             }
+            if (DEBUG_KEY) System.out.println("Selection end");
         }
     }
     private void treatKey(SelectionKey key) {
+        if (DEBUG_KEY) printSelectedKey(key);
         try {
             if (key.isValid() && key.isConnectable()) {
                 ((Context) key.attachment()).doConnect();
@@ -256,6 +257,7 @@ public class ClientChatOS {
     // --------------------------------------------------
 
     public static void silentlyClose(Channel channel) {
+        if (DEBUG_CONNECTION) System.out.println("CLOSE CONNECTION");
         try {channel.close();} catch (IOException ignore) {}
     }
 
@@ -269,5 +271,72 @@ public class ClientChatOS {
 
     private static void usage(){
         System.out.println("Usage : ClientChatOS hostname port repertory");
+    }
+
+
+    /**
+     *  Theses methods are here to help understanding the behavior of the selector
+     **/
+    private String interestOpsToString(SelectionKey key){
+        if (!key.isValid()) {
+            return "CANCELLED";
+        }
+        int interestOps = key.interestOps();
+        ArrayList<String> list = new ArrayList<>();
+        if ((interestOps&SelectionKey.OP_ACCEPT)!=0) list.add("OP_ACCEPT");
+        if ((interestOps& OP_READ)!=0) list.add("OP_READ");
+        if ((interestOps& OP_WRITE)!=0) list.add("OP_WRITE");
+        if ((interestOps& OP_CONNECT)!=0) list.add("OP_CONNECT");
+        return String.join("|",list);
+    }
+
+    public void printKeys() {
+        Set<SelectionKey> selectionKeySet = selector.keys();
+        if (selectionKeySet.isEmpty()) {
+            System.out.println("The selector contains no key : this should not happen!");
+            return;
+        }
+        System.out.println("The selector contains:");
+        for (SelectionKey key : selectionKeySet){
+            SelectableChannel channel = key.channel();
+            if (channel instanceof ServerSocketChannel) {
+                System.out.println("\tKey for ServerSocketChannel : "+ interestOpsToString(key));
+            } else {
+                SocketChannel sc = (SocketChannel) channel;
+                System.out.println("\tKey for Client "+ remoteAddressToString(sc) +" : "+ interestOpsToString(key));
+            }
+        }
+    }
+
+    private String remoteAddressToString(SocketChannel sc) {
+        try {
+            if (sc.getLocalAddress() == null)
+                return "unconnected";
+            return sc.getLocalAddress().toString();
+        } catch (IOException e){
+            return "???";
+        }
+    }
+
+    public void printSelectedKey(SelectionKey key) {
+        SelectableChannel channel = key.channel();
+        if (channel instanceof ServerSocketChannel) {
+            System.out.println("\tServerSocketChannel can perform : " + possibleActionsToString(key));
+        } else {
+            SocketChannel sc = (SocketChannel) channel;
+            System.out.println("\tClient " + remoteAddressToString(sc) + " can perform : " + possibleActionsToString(key));
+        }
+    }
+
+    private String possibleActionsToString(SelectionKey key) {
+        if (!key.isValid()) {
+            return "CANCELLED";
+        }
+        ArrayList<String> list = new ArrayList<>();
+        if (key.isAcceptable()) list.add("ACCEPT");
+        if (key.isReadable()) list.add("READ");
+        if (key.isWritable()) list.add("WRITE");
+        if (key.isConnectable()) list.add("CONNECT");
+        return String.join(" and ",list);
     }
 }

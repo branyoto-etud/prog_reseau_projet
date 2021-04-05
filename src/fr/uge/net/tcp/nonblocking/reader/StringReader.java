@@ -45,7 +45,7 @@ import static java.util.Objects.requireNonNull;
  * message = reader.get();              // message = "a"</pre></blockquote>
  */
 public class StringReader implements Reader<String> {
-    // buff is always in write-mode
+    // content is always in write-mode
     private final ByteBuffer buff = ByteBuffer.allocate(TEXT_SIZE).limit(Integer.BYTES);
     private ProcessStatus state = ProcessStatus.REFILL;
     private String message = null;
@@ -90,12 +90,12 @@ public class StringReader implements Reader<String> {
      */
     private ProcessStatus subProcess(ByteBuffer bb) {
         if (length == -1) {                                                 // If the size has been read yet
-            if (moveData(bb, buff)) return ProcessStatus.REFILL;            // Tries to fill buff and asks for refill if not full
+            if (moveData(bb, buff)) return ProcessStatus.REFILL;            // Tries to fill content and asks for refill if not full
             length = buff.flip().getInt();                                  // Gets the length of the message
             if (length <= 0 || length > 1_024) return ProcessStatus.ERROR;  // Checks if positive
             buff.clear().limit(length);                                     // Sets the inner buffer limit
         }
-        if (moveData(bb, buff)) return ProcessStatus.REFILL;                // Tries to fill buff and asks for refill if not full
+        if (moveData(bb, buff)) return ProcessStatus.REFILL;                // Tries to fill content and asks for refill if not full
 
         message = UTF_8.decode(buff.flip()).toString();                     // Reads the found string
         buff.clear();                                                       // Resets buffer

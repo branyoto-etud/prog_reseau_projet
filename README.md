@@ -17,6 +17,10 @@ Same with @
 - Client : Correct connection of privateConnection socket
 - Client : Check if 2 CP w/ same client is correct
 - Client : fuse PCCtx::launch and constructor
+- Client : Invalid token
+- Client : Too much client w/ the same token (more than two)
+
+- Correct PC msg forwarding (and do perfect forwarding in C++)
 
 ### Disclaimer 
 The only file that is ensured to be up to date is the Protocole.txt.
