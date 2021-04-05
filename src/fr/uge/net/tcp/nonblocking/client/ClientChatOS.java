@@ -168,12 +168,12 @@ public class ClientChatOS {
     private final Selector selector;
     private MainContext mainContext;
     private final SocketChannel sc;
-    private final String repertory;
+    private final String directory;
     private final Thread console;
 
-    public ClientChatOS(InetSocketAddress serverAddress, String repertory) throws IOException {
+    public ClientChatOS(InetSocketAddress serverAddress, String directory) throws IOException {
         this.serverAddress = requireNonNull(serverAddress);
-        this.repertory = requireNonNull(repertory);
+        this.directory = requireNonNull(directory);
         console = new Thread(this::consoleRun);
         selector = Selector.open();
         sc = SocketChannel.open();
@@ -207,7 +207,7 @@ public class ClientChatOS {
         var pc = SocketChannel.open();
         pc.configureBlocking(false);
         var key = pc.register(selector, SelectionKey.OP_CONNECT);
-        var context = new PrivateConnectionContext(pseudo, key);
+        var context = new PrivateConnectionContext(pseudo, directory, key);
         key.attach(context);
         pc.connect(serverAddress);
         privateConnections.put(pseudo, context);
@@ -222,8 +222,6 @@ public class ClientChatOS {
         console.start();
 
         while(!Thread.interrupted()) {
-            if (DEBUG_KEY) printKeys();
-            if (DEBUG_KEY) System.out.println("Selection start");
             try {
                 selector.select(this::treatKey);
                 processCommands();
@@ -232,11 +230,9 @@ public class ClientChatOS {
                 silentlyClose(key.channel());
                 System.exit(-1);
             }
-            if (DEBUG_KEY) System.out.println("Selection end");
         }
     }
     private void treatKey(SelectionKey key) {
-        if (DEBUG_KEY) printSelectedKey(key);
         try {
             if (key.isValid() && key.isConnectable()) {
                 ((Context) key.attachment()).doConnect();
@@ -257,86 +253,15 @@ public class ClientChatOS {
     // --------------------------------------------------
 
     public static void silentlyClose(Channel channel) {
-        if (DEBUG_CONNECTION) System.out.println("CLOSE CONNECTION");
         try {channel.close();} catch (IOException ignore) {}
     }
 
     public static void main(String[] args) throws NumberFormatException, IOException {
-        if (args.length!=3){
-            usage();
-            return;
-        }
-        new ClientChatOS(new InetSocketAddress(args[0], parseInt(args[1])), args[2]).launch();
+        if (args.length!=3) usage();
+        else new ClientChatOS(new InetSocketAddress(args[0], parseInt(args[1])), args[2]).launch();
     }
 
     private static void usage(){
         System.out.println("Usage : ClientChatOS hostname port repertory");
-    }
-
-
-    /**
-     *  Theses methods are here to help understanding the behavior of the selector
-     **/
-    private String interestOpsToString(SelectionKey key){
-        if (!key.isValid()) {
-            return "CANCELLED";
-        }
-        int interestOps = key.interestOps();
-        ArrayList<String> list = new ArrayList<>();
-        if ((interestOps&SelectionKey.OP_ACCEPT)!=0) list.add("OP_ACCEPT");
-        if ((interestOps& OP_READ)!=0) list.add("OP_READ");
-        if ((interestOps& OP_WRITE)!=0) list.add("OP_WRITE");
-        if ((interestOps& OP_CONNECT)!=0) list.add("OP_CONNECT");
-        return String.join("|",list);
-    }
-
-    public void printKeys() {
-        Set<SelectionKey> selectionKeySet = selector.keys();
-        if (selectionKeySet.isEmpty()) {
-            System.out.println("The selector contains no key : this should not happen!");
-            return;
-        }
-        System.out.println("The selector contains:");
-        for (SelectionKey key : selectionKeySet){
-            SelectableChannel channel = key.channel();
-            if (channel instanceof ServerSocketChannel) {
-                System.out.println("\tKey for ServerSocketChannel : "+ interestOpsToString(key));
-            } else {
-                SocketChannel sc = (SocketChannel) channel;
-                System.out.println("\tKey for Client "+ remoteAddressToString(sc) +" : "+ interestOpsToString(key));
-            }
-        }
-    }
-
-    private String remoteAddressToString(SocketChannel sc) {
-        try {
-            if (sc.getLocalAddress() == null)
-                return "unconnected";
-            return sc.getLocalAddress().toString();
-        } catch (IOException e){
-            return "???";
-        }
-    }
-
-    public void printSelectedKey(SelectionKey key) {
-        SelectableChannel channel = key.channel();
-        if (channel instanceof ServerSocketChannel) {
-            System.out.println("\tServerSocketChannel can perform : " + possibleActionsToString(key));
-        } else {
-            SocketChannel sc = (SocketChannel) channel;
-            System.out.println("\tClient " + remoteAddressToString(sc) + " can perform : " + possibleActionsToString(key));
-        }
-    }
-
-    private String possibleActionsToString(SelectionKey key) {
-        if (!key.isValid()) {
-            return "CANCELLED";
-        }
-        ArrayList<String> list = new ArrayList<>();
-        if (key.isAcceptable()) list.add("ACCEPT");
-        if (key.isReadable()) list.add("READ");
-        if (key.isWritable()) list.add("WRITE");
-        if (key.isConnectable()) list.add("CONNECT");
-        return String.join(" and ",list);
     }
 }

@@ -323,8 +323,6 @@ public class ServerChatOS {
     public void launch() throws IOException {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
         while(!Thread.interrupted()) {
-            if (DEBUG_KEY) printKeys(); // for debug
-            if (DEBUG_KEY) System.out.println("Starting select");
             try {
                 selector.select(this::treatKey);
                 for (var e : changing.entrySet()) {
@@ -334,11 +332,9 @@ public class ServerChatOS {
             } catch (UncheckedIOException tunneled) {
                 throw tunneled.getCause();
             }
-            if (DEBUG_KEY) System.out.println("Ending select");
         }
     }
     private void treatKey(SelectionKey key) {
-        if (DEBUG_KEY) printSelectedKey(key);
         try {
             if (key.isValid() && key.isAcceptable()) doAccept(key);
         } catch(IOException ioe) {  // Tunneling
@@ -347,10 +343,7 @@ public class ServerChatOS {
         var ctx = (Context) key.attachment();
         try {
             if (key.isValid() && key.isWritable()) ctx.doWrite();
-            if (key.isValid() && key.isReadable()) {
-                ctx.doRead();
-                if (DEBUG_METHOD) System.out.println(ctx.getClass());
-            }
+            if (key.isValid() && key.isReadable()) ctx.doRead();
         } catch (IOException e) {
             logger.info("Connection closed with client due to IOException");
             if (ctx instanceof ClientContext cli)
@@ -395,73 +388,5 @@ public class ServerChatOS {
         if (args.length == 1)
             new ServerChatOS(Integer.parseInt(args[0])).launch();
         else System.out.println("Usage : ServerChatOS port");
-    }
-
-
-
-
-
-
-
-    /**
-     *  Theses methods are here to help understanding the behavior of the selector
-     **/
-    private String interestOpsToString(SelectionKey key){
-        if (!key.isValid()) {
-            return "CANCELLED";
-        }
-        int interestOps = key.interestOps();
-        ArrayList<String> list = new ArrayList<>();
-        if ((interestOps&SelectionKey.OP_ACCEPT)!=0) list.add("OP_ACCEPT");
-        if ((interestOps& OP_READ)!=0) list.add("OP_READ");
-        if ((interestOps& OP_WRITE)!=0) list.add("OP_WRITE");
-        return String.join("|",list);
-    }
-
-    public void printKeys() {
-        Set<SelectionKey> selectionKeySet = selector.keys();
-        if (selectionKeySet.isEmpty()) {
-            System.out.println("The selector contains no key : this should not happen!");
-            return;
-        }
-        System.out.println("The selector contains:");
-        for (SelectionKey key : selectionKeySet){
-            SelectableChannel channel = key.channel();
-            if (channel instanceof ServerSocketChannel) {
-                System.out.println("\tKey for ServerSocketChannel : "+ interestOpsToString(key));
-            } else {
-                SocketChannel sc = (SocketChannel) channel;
-                System.out.println("\tKey for Client "+ remoteAddressToString(sc) +" : "+ interestOpsToString(key));
-            }
-        }
-    }
-
-    private String remoteAddressToString(SocketChannel sc) {
-        try {
-            return sc.getRemoteAddress().toString();
-        } catch (IOException e){
-            return "???";
-        }
-    }
-
-    public void printSelectedKey(SelectionKey key) {
-        SelectableChannel channel = key.channel();
-        if (channel instanceof ServerSocketChannel) {
-            System.out.println("\tServerSocketChannel can perform : " + possibleActionsToString(key));
-        } else {
-            SocketChannel sc = (SocketChannel) channel;
-            System.out.println("\tClient " + remoteAddressToString(sc) + " can perform : " + possibleActionsToString(key));
-        }
-    }
-
-    private String possibleActionsToString(SelectionKey key) {
-        if (!key.isValid()) {
-            return "CANCELLED";
-        }
-        ArrayList<String> list = new ArrayList<>();
-        if (key.isAcceptable()) list.add("ACCEPT");
-        if (key.isReadable()) list.add("READ");
-        if (key.isWritable()) list.add("WRITE");
-        return String.join(" and ",list);
     }
 }

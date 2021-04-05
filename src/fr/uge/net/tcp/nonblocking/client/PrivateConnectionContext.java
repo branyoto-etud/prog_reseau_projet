@@ -2,38 +2,45 @@ package fr.uge.net.tcp.nonblocking.client;
 
 import fr.uge.net.tcp.nonblocking.reader.HTTPPacket;
 import fr.uge.net.tcp.nonblocking.reader.HTTPReader;
-import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 
 import static fr.uge.net.tcp.nonblocking.Config.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeTokenPacket;
 import static fr.uge.net.tcp.nonblocking.client.ClientChatOS.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.REQUEST;
+import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static java.util.Objects.requireNonNull;
+
 class PrivateConnectionContext implements Context {
     private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
     private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
     private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Buffer are in read-mode
     private final HTTPReader reader = new HTTPReader();
+    private final String directory;
     private final SocketChannel sc;
     private final SelectionKey key;
     private final String other;
     private boolean connected;
     private boolean closed;
 
-    public PrivateConnectionContext(String other, SelectionKey key) {
+    public PrivateConnectionContext(String other, String directory, SelectionKey key) {
         this.other = requireNonNull(other);
         sc = (SocketChannel) key.channel();
         this.key = requireNonNull(key);
+        this.directory = directory;
     }
     /**
      * Initiate the connection to the server.
@@ -42,24 +49,44 @@ class PrivateConnectionContext implements Context {
         queue.add(makeTokenPacket(token, other).toBuffer().flip());
     }
     private void processIn() {
-        // Todo : Read HTTP content
-        System.out.println("Msg received : " + StandardCharsets.UTF_8.decode(bbIn.flip()).toString());
-        bbIn.compact();
-        if (DEBUG_BUFFER) System.out.println("bbIn = " + bbIn);
+        var status = reader.process(bbIn);
+        if (status != DONE) return;
+        var packet = reader.get();
+        reader.reset();
+        switch (packet.type()) {
+            case REQUEST -> {
+                var resource = packet.resource();
+                if (!fileExists(resource)) {
+                    queueMessage(createBadResponse().toBuffer());
+                    return;
+                }
+                var contentType = resource.endsWith(".txt") ? TEXT_CONTENT : OTHER_CONTENT;
+                var packets = resourceToPackets(resource, contentType);
+                packets.forEach(p -> queueMessage(p.toBuffer()));
+            }
+            case GOOD_RESPONSE -> {
+                if (TEXT_CONTENT.equals(packet.contentType())) {
+                    writeAsText(packet.content());
+                } else {
+                    writeAsData(packet.content(), packet.resource());
+                }
+            }
+            case BAD_RESPONSE -> System.out.println("Bad request : " + packet.resource());
+        }
     }
     public void queueMessage(String msg) {
-        System.out.println("Msg to send : " + msg);
-        queue.add(StandardCharsets.UTF_8.encode(msg));
+        queueMessage(HTTPPacket.createRequest(msg).toBuffer());
+    }
+    public void queueMessage(ByteBuffer buff) {
+        queue.add(buff);
         processOut();
         updateInterestOps();
     }
     private void processOut() {
-        if (DEBUG_METHOD) System.out.println("---processOut---");
         if (queue.isEmpty()) return;
         if (bbOut.position() != 0) return;
         bbOut.clear();
         bbOut.put(queue.remove());
-        if (DEBUG_BUFFER) System.out.println("bbOut = " + bbOut);
     }
     private void updateInterestOps() {
         var op=0;
@@ -71,22 +98,16 @@ class PrivateConnectionContext implements Context {
     }
     @Override
     public void doRead() throws IOException {
-        if (DEBUG_METHOD) System.out.println("---READ---");
         if (sc.read(bbIn)==-1) {
-            if (DEBUG_CONNECTION) System.out.println("\u001B[91m" + "Connection closed!!!!!!!!" + "\u001B[0m");
             closed = true;
         }
-        if (DEBUG_BUFFER) System.out.println("bbIn = " + bbIn);
         processIn();
         updateInterestOps();
     }
     @Override
     public void doWrite() throws IOException {
-        if (DEBUG_METHOD) System.out.println("---WRITE---");
-        if (DEBUG_BUFFER) System.out.println("bbOut = " + bbOut);
         sc.write(bbOut.flip());
         bbOut.compact();
-        if (DEBUG_BUFFER) System.out.println("bbOut = " + bbOut);
         processOut();
         updateInterestOps();
     }
@@ -94,13 +115,48 @@ class PrivateConnectionContext implements Context {
     public void doConnect() throws IOException {
         try {
             if (!sc.finishConnect()) return;
-            if (DEBUG_CONNECTION) System.out.println("New socket : " + sc.getLocalAddress());
             connected = true;
             processOut();
             updateInterestOps();
         } catch (IOException ioe) {
             onConnectFail();
             throw ioe;
+        }
+    }
+
+    private boolean fileExists(String resource) {
+        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
+        return Files.exists(Paths.get(path));
+    }
+    private List<HTTPPacket> resourceToPackets(String resource, String contentType) {
+        var buffers = new ArrayList<HTTPPacket>();
+        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
+        try (var fc = FileChannel.open(Paths.get(path), StandardOpenOption.READ)) {
+            var buff = ByteBuffer.allocate(CONTENT_MAX_SIZE);
+            while (fc.read(buff) != -1) {
+                if (!buff.hasRemaining()) {
+                    buffers.add(createGoodResponse(contentType, buff.flip(), resource));
+                    buff = ByteBuffer.allocate(CONTENT_MAX_SIZE);
+                }
+            }
+            if (buff.position() != 0)
+                buffers.add(createGoodResponse(contentType, buff.flip(), resource));
+        } catch (IOException e) {
+            return List.of(createBadResponse());
+        }
+        return buffers;
+    }
+    private static void writeAsText(ByteBuffer content) {
+        System.out.println(StandardCharsets.US_ASCII.decode(content).toString());
+    }
+    private void writeAsData(ByteBuffer content, String resource) {
+        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
+        try (var fc = FileChannel.open(Paths.get(path), StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+            while (content.hasRemaining()) {
+                fc.write(content);
+            }
+        } catch (IOException ioe) {
+            System.err.println("Cannot open the file " + resource + " in write mode.");
         }
     }
 }

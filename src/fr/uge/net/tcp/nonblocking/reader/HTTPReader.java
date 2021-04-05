@@ -3,6 +3,7 @@ package fr.uge.net.tcp.nonblocking.reader;
 import java.nio.ByteBuffer;
 
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
@@ -11,12 +12,13 @@ import static java.util.Objects.requireNonNull;
 
 public class HTTPReader implements Reader<HTTPPacket> {
     private final HTTPLineReader reader = new HTTPLineReader();
-    private String contentType = "application/octet-stream";
+    private String contentType = OTHER_CONTENT;
     private boolean contentReading = false;
     private ProcessStatus status = REFILL;
     private boolean typeFound = false;
     private HTTPPacket packet = null;
     private ByteBuffer buff = null;
+    private String resource = null;
 
     /**
      * Processes the buffer and read every lines until an HTTP component can be created.
@@ -71,11 +73,11 @@ public class HTTPReader implements Reader<HTTPPacket> {
         var status = reader.process(bb);
         if (status != DONE) return status;
         var msg = reader.get();
-        if (msg.startsWith("HTTP")) {
+        if (msg.startsWith("HTTP/1.1")) {
             var tokens = msg.split(" ", 3);
-            if (!tokens[1].equals("200")) packet = new HTTPPacket(BAD_RESPONSE, null, null, null);
-        } else if (msg.startsWith("GET") && msg.endsWith("HTTP/1.1")) {
-            packet = new HTTPPacket(REQUEST, null, null, msg.substring(3, msg.length() - 8).trim());
+            if (!tokens[1].equals("200")) packet = createBadResponse();
+        } else if (msg.startsWith("GET")) {
+            packet = createRequest(msg.substring(3).trim());
         } else {
             return ERROR;
         }
@@ -86,16 +88,18 @@ public class HTTPReader implements Reader<HTTPPacket> {
     private ProcessStatus readHeader(ByteBuffer bb) {
         ProcessStatus status;
         while ((status = reader.process(bb)) == DONE) {
-            var msg = reader.get();
+            var line = reader.get();
             reader.reset();
-            if (msg.isBlank()) {
+            if (line.isBlank()) {
                 contentReading = true;
                 break;
             }
-            if (msg.startsWith("Content-Type:"))
-                contentType = msg.substring(13).trim();
-            if (msg.startsWith("Content-Length:")) {
-                var size = parseInt(msg.substring(15).trim());
+            if (line.startsWith("Content-Type:"))
+                contentType = line.substring(13).trim();
+            else if (line.startsWith("Resource:"))
+                resource = line.substring(9).trim();
+            else if (line.startsWith("Content-Length:")) {
+                var size = parseInt(line.substring(15).trim());
                 if (size < 0 || size > BUFFER_MAX_SIZE) return ERROR;
                 buff = ByteBuffer.allocate(size);
             }
@@ -107,14 +111,14 @@ public class HTTPReader implements Reader<HTTPPacket> {
         moveData(bb.flip(), buff);
         bb.compact();
         if (buff.hasRemaining()) return REFILL;
-        packet = new HTTPPacket(GOOD_RESPONSE, contentType, buff, null);
+        packet = createGoodResponse(contentType, buff, resource);
         return DONE;
     }
     @Override
     public HTTPPacket get() {
         if (status != DONE) throw new IllegalStateException("Not DONE!");
         if (packet.type() != GOOD_RESPONSE) return packet;
-        return new HTTPPacket(GOOD_RESPONSE, contentType, copyBuffer(buff).flip(), null);
+        return createGoodResponse(contentType, copyBuffer(buff).flip(), resource);
     }
 
     /**
@@ -133,9 +137,10 @@ public class HTTPReader implements Reader<HTTPPacket> {
 
     @Override
     public void reset() {
-        contentType = "application/octet-stream";
+        contentType = OTHER_CONTENT;
         contentReading = false;
         typeFound = false;
+        resource = null;
         status = REFILL;
         reader.reset();
         packet = null;
