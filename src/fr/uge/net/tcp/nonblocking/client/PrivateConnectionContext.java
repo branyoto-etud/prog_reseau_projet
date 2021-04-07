@@ -47,7 +47,7 @@ class PrivateConnectionContext implements Context {
      * Initiate the connection to the server.
      */
     public void launch(int token) {
-        queue.add(makeTokenPacket(token, other).toBuffer().flip());
+        queue.add(makeTokenPacket(token, other).toBuffer());
     }
     private void processIn() {
         var status = reader.process(bbIn);

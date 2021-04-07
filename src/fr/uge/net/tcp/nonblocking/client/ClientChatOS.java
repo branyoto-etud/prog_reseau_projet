@@ -76,7 +76,7 @@ public class ClientChatOS {
                 case REJECTED -> pendingConnection.remove(packet.pseudo());
                 case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
                 case WRONG_CODE, INVALID_LENGTH -> {
-                    queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer().flip());
+                    queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
                     processOut();
                     updateInterestOps();
                 }
@@ -86,17 +86,17 @@ public class ClientChatOS {
             if (requester != null) {
                 whileWaiting(msg);
             } else {
-                queue.add(parseInput(msg).toBuffer().flip());
+                queue.add(parseInput(msg).toBuffer());
             }
             processOut();
             updateInterestOps();
         }
         private void whileWaiting(String msg) {
             if (msg.toLowerCase().startsWith("y")) {
-                queue.add(makePrivateConnectionPacket(requester).toBuffer().flip());
+                queue.add(makePrivateConnectionPacket(requester).toBuffer());
                 requester = null;
             } else if (msg.toLowerCase().startsWith("n")) {
-                queue.add(makeRejectedPacket(requester).toBuffer().flip());
+                queue.add(makeRejectedPacket(requester).toBuffer());
                 requester = null;
             }
         }

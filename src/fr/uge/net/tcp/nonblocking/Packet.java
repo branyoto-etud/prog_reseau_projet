@@ -166,19 +166,19 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     /**
      * Create a buffer representing the packet that is sent according to the protocol CHATOS.
      *
-     * @return a buffer in write-mode containing the message to be send.
+     * @return a buffer in read-mode containing the message to be send.
      * The returned buffer is a new one for each call.
      * @throws IllegalStateException if any string encoded in {@link java.nio.charset.StandardCharsets#UTF_8} is bigger than {@link Config#TEXT_SIZE}.
      */
     public ByteBuffer toBuffer() {
-        return switch (type) {
+        return (switch (type) {
             case ERR -> errToBuffer();
             case AUTH -> authToBuffer();
             case GMSG -> generalToBuffer();
             case DMSG -> directToBuffer();
             case PC -> privateToBuffer();
             case TOKEN -> tokenToBuffer();
-        };
+        }).flip();
     }
 
     /**

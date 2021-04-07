@@ -77,7 +77,7 @@ public class ServerChatOS {
             }
         }
         private void queueMessage(Packet msg) {
-            queue.add(msg.toBuffer().flip());
+            queue.add(msg.toBuffer());
             processOut();
             updateInterestOps();
         }
@@ -139,8 +139,8 @@ public class ServerChatOS {
                 return;
             }
             switch (reader.getFailure()) {
-                case CODE -> queue.add(makeErrorPacket(WRONG_CODE).toBuffer().flip());
-                case LENGTH -> queue.add(makeErrorPacket(INVALID_LENGTH).toBuffer().flip());
+                case CODE -> queue.add(makeErrorPacket(WRONG_CODE).toBuffer());
+                case LENGTH -> queue.add(makeErrorPacket(INVALID_LENGTH).toBuffer());
             }
             rejecting = true;
             processOut();
@@ -195,7 +195,7 @@ public class ServerChatOS {
             }
         }
         private void queueMessage(Packet msg) {
-            queue.add(msg.toBuffer().flip());
+            queue.add(msg.toBuffer());
             processOut();
             updateInterestOps();
         }
