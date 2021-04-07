@@ -50,7 +50,7 @@ public class ServerChatOS {
         private boolean closed = false;
 
         /**
-         * Creates a connection context. USed by client until authentication.
+         * Creates a connection context. Used by client until authentication.
          * @param key the connection key. Cannot be null.
          */
         private ConnectionContext(SelectionKey key){
