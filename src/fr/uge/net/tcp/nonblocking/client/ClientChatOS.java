@@ -173,7 +173,10 @@ public class ClientChatOS {
          */
         private void parseInput(String line) {
             requireNonNull(line);
-            if (!connected) queueMessage(makeAuthenticationPacket(pseudo = line).toBuffer());
+            if (!connected) {
+                queueMessage(makeAuthenticationPacket(pseudo = line).toBuffer());
+                return;
+            }
             if (line.startsWith("@") && sendDirectMessage(line)) return;
             if (line.startsWith("/") && sendPrivateConnection(line)) return;
             queueMessage(makeGeneralMessagePacket(
@@ -297,7 +300,7 @@ public class ClientChatOS {
         var pc = SocketChannel.open();
         pc.configureBlocking(false);
         var key = pc.register(selector, SelectionKey.OP_CONNECT);
-        var context = new PrivateConnectionContext(packet, directory, key);
+        var context = new PrivateConnectionContext(packet, directory, key, packet.pseudo());
         key.attach(context);
         pc.connect(serverAddress);
         privateConnections.put(packet.pseudo(), context);
@@ -324,6 +327,7 @@ public class ClientChatOS {
             } catch (UncheckedIOException tunneled) {
                 console.interrupt();
                 silentlyClose(key.channel());
+                privateConnections.forEach((k, v) -> v.close(privateConnections));
                 System.exit(-1); // Todo : remove when using BufferedReader
             }
         }
@@ -347,7 +351,7 @@ public class ClientChatOS {
                 throw new UncheckedIOException(ioe);
             }
             logger.info("Private connection stopped!");
-            privateCtx.close();
+            privateCtx.close(privateConnections);
         }
     }
 

@@ -17,6 +17,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
@@ -36,11 +37,13 @@ class PrivateConnectionContext implements Context {
     private final String directory;
     private final SocketChannel sc;
     private final SelectionKey key;
+    private final String pseudo;
     private boolean connected;
     private boolean closed;
 
-    public PrivateConnectionContext(Packet packet, String directory, SelectionKey key) {
+    public PrivateConnectionContext(Packet packet, String directory, SelectionKey key, String pseudo) {
         sc = (SocketChannel) key.channel();
+        this.pseudo = pseudo;
         this.key = requireNonNull(key);
         this.directory = directory;
         queue.add(makeTokenPacket(parseInt(packet.message()), packet.pseudo()).toBuffer());
@@ -59,7 +62,6 @@ class PrivateConnectionContext implements Context {
                 }
                 var contentType = resource.endsWith(".txt") ? TEXT_CONTENT : OTHER_CONTENT;
                 var packets = resourceToPackets(resource, contentType);
-                packets.forEach(System.out::println);
                 packets.forEach(p -> queueMessage(p.toBuffer()));
             }
             case GOOD_RESPONSE -> {
@@ -86,13 +88,14 @@ class PrivateConnectionContext implements Context {
         bbOut.clear();
         bbOut.put(queue.remove());
     }
-    private void updateInterestOps() {
+    private int updateInterestOps() {
         var op=0;
-        if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
-        if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
-        if (!connected)                     op  = SelectionKey.OP_CONNECT;  // If not connected only connect
-        if (op == 0)                        silentlyClose(sc);              // If there's nothing to read nor write
+        if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;
+        if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;
+        if (!connected)                     op  = SelectionKey.OP_CONNECT;
+        if (op == 0)                        silentlyClose(sc);
         else                                key.interestOps(op);
+        return op;
     }
     @Override
     public void doRead() throws IOException {
@@ -100,7 +103,9 @@ class PrivateConnectionContext implements Context {
             closed = true;
         }
         processIn();
-        updateInterestOps();
+        if (updateInterestOps() == 0) {
+            throw new IOException("Connection closed");
+        }
     }
     @Override
     public void doWrite() throws IOException {
@@ -157,7 +162,8 @@ class PrivateConnectionContext implements Context {
     private Path resourceToPath(String resource) {
         return Paths.get(resource.startsWith("/") ? directory + resource : directory + "/" + resource);
     }
-    public void close() {
+    public void close(Map<String, PrivateConnectionContext> privateConnections) {
+        privateConnections.remove(pseudo);
         silentlyClose(sc);
     }
 }
