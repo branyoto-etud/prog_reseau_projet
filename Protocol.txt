@@ -218,10 +218,10 @@ Formats ChatOS
            ------------------------------------
   PC      |    4 |  taille du pseudo |  pseudo |
            ------------------------------------
-            octet  integer
-           ---------------
-  TOKEN   |    5 |  token |
-           ---------------
+            octet  integer         4 octets        string
+           -----------------------------------------------
+  TOKEN   |    0 | REJECTED |  taille du pseudo |  pseudo |
+           -----------------------------------------------
             octet   octet          4 octets        string
            ----------------
   ERROR   |    0 | ErrCode |
