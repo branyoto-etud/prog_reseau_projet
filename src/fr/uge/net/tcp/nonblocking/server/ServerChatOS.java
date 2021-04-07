@@ -9,16 +9,19 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.Config.*;
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.copyBuffer;
+import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketType.AUTH;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketType.TOKEN;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
-import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.nio.channels.SelectionKey.OP_READ;
 import static java.nio.channels.SelectionKey.OP_WRITE;
 import static java.util.Objects.requireNonNull;
@@ -69,7 +72,6 @@ public class ServerChatOS {
                 var token = Integer.parseInt(packet.message());
                 new ServerMessageDisplay("").onTokenPacket(sc, token);
                 if (privateCP.containsKey(token)) {
-                    if (DEBUG_BUFFER) System.out.println(bbIn + " -- " + bbOut);
                     privateCP.get(token).addSelectionKey(key, bbIn);
                 }
             }
@@ -232,9 +234,11 @@ public class ServerChatOS {
         private class PrivateConnectionContext implements Context {
             private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
             private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
+            private final LinkedList<ByteBuffer> queue = new LinkedList<>(); // read-mode
             private PrivateConnectionContext other;
             private final SocketChannel sc;
             private final SelectionKey key;
+            private boolean closed = false;
 
             private PrivateConnectionContext(SelectionKey key, ByteBuffer remaining) {
                 this.key = key;
@@ -244,46 +248,48 @@ public class ServerChatOS {
                 if (remaining.flip().hasRemaining())
                     bbIn.put(remaining);
             }
-            private void setOther(PrivateConnectionContext other) {
-                this.other = requireNonNull(other);
-            }
             private void processIn() {
-                if (DEBUG_METHOD) System.out.println("---processIn---");
-                other.forwardData(bbIn);
-                if (DEBUG_BUFFER) System.out.println("bbIn = " + bbIn);
+                other.queueMessage(bbIn.flip());
+                bbIn.clear();
+            }
+            private void queueMessage(ByteBuffer other) {
+                queue.add(copyBuffer(other).flip());
+                processOut();
                 updateInterestOps();
             }
-            private void updateInterestOps() {
-                var op = OP_READ;
-                if (bbOut.position() != 0)
-                    op |= OP_WRITE;
-                key.interestOps(op);
+            private void processOut() {
+                if (queue.isEmpty()) return;
+                if (bbOut.position() != 0) return;
+                bbOut.clear();
+                bbOut.put(queue.remove());
             }
-            private void forwardData(ByteBuffer other) {
-                if (DEBUG_METHOD) System.out.println("---forwardData---");
-                moveData(other.flip(), bbOut);
-                other.compact();
-                if (DEBUG_BUFFER) System.out.println("bbOut = " + bbOut);
+            private void updateInterestOps() {
+                var op = 0;
+                if (!closed && bbIn.hasRemaining()) op |= OP_READ;
+                if (bbOut.position() != 0)          op |= OP_WRITE;
+                if (op == 0)                        close();
+                else                                key.interestOps(op);
+            }
+            @Override
+            public void doRead() throws IOException {
+                if (sc.read(bbIn) == -1) {
+                    closed = true;
+                    logger.info("Connection closed");
+                }
+                processIn();
                 updateInterestOps();
             }
             @Override
             public void doWrite() throws IOException {
-                System.out.println("---WRITE---");
-                System.out.println("bbOut = " + bbOut);
                 sc.write(bbOut.flip());
                 bbOut.compact();
+                processOut();
                 updateInterestOps();
             }
-            @Override
-            public void doRead() throws IOException {
-                System.out.println("---READ---");
-                if (sc.read(bbIn) == -1) close();
-                else                     {
-                    System.out.println("bbIn = " + bbIn);
-                    processIn();
-                    System.out.println("bbIn = " + bbIn);
-                }
+            private void setOther(PrivateConnectionContext other) {
+                this.other = requireNonNull(other);
             }
+
             @Override public void doConnect() {}
             public void close() {
                 closeBoth();
@@ -374,7 +380,6 @@ public class ServerChatOS {
      * @throws NullPointerException if {@code channel} is null.
      */
     private void silentlyClose(Channel channel, String pseudo) {
-        if (DEBUG_CONNECTION) System.out.println("Closing " + channel + " with pseudo " + pseudo);
         requireNonNull(channel);
         if (pseudo != null) clients.remove(pseudo);
         try { channel.close(); } catch (IOException ignore) {}
@@ -388,8 +393,13 @@ public class ServerChatOS {
         return c1.hashCode() + c2.hashCode();
     }
     public static void main(String[] args) throws NumberFormatException, IOException {
-        if (args.length == 1)
+        if (args.length != 1) {
+            usage();
+        } else {
             new ServerChatOS(Integer.parseInt(args[0])).launch();
-        else System.out.println("Usage : ServerChatOS port");
+        }
+    }
+    private static void usage() {
+        System.out.println("Usage : ServerChatOS port");
     }
 }

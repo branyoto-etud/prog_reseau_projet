@@ -4,9 +4,9 @@ import fr.uge.net.tcp.nonblocking.Config;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.Config.TEXT_SIZE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 /**

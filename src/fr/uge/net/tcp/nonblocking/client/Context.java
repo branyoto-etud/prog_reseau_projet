@@ -5,7 +5,7 @@ import java.io.IOException;
 /**
  * Mandatory methods to be an attachement of a SelectionKey.
  */
-public interface Context {
+public interface Context { // Todo : Add default methods
     void doWrite() throws IOException;
     void doRead() throws IOException;
     void doConnect() throws IOException;

@@ -7,12 +7,17 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
-import java.util.*;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.Config.*;
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
+import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
@@ -249,9 +254,6 @@ public class ClientChatOS {
     // Static Methods
     // --------------------------------------------------
 
-    public static void silentlyClose(Channel channel) {
-        try {channel.close();} catch (IOException ignore) {}
-    }
 
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length!=3) usage();

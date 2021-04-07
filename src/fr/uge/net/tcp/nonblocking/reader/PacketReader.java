@@ -5,11 +5,12 @@ import fr.uge.net.tcp.nonblocking.Packet.PacketType;
 
 import java.nio.ByteBuffer;
 
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.REJECTED;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.*;
+import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.CODE;
+import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.LENGTH;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
-import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.util.Objects.requireNonNull;
 
 public class PacketReader implements Reader<Packet> {

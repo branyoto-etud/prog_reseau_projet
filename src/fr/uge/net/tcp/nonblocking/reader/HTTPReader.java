@@ -2,17 +2,17 @@ package fr.uge.net.tcp.nonblocking.reader;
 
 import java.nio.ByteBuffer;
 
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.copyBuffer;
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.GOOD_RESPONSE;
 import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
-import static fr.uge.net.tcp.nonblocking.reader.Reader.moveData;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
 public class HTTPReader implements Reader<HTTPPacket> {
     private final HTTPLineReader reader = new HTTPLineReader();
-    private int total_size = 0;
     private String contentType = OTHER_CONTENT;
     private boolean contentReading = false;
     private ProcessStatus status = REFILL;
@@ -71,7 +71,6 @@ public class HTTPReader implements Reader<HTTPPacket> {
     }
 
     private ProcessStatus readType(ByteBuffer bb) {
-        System.out.println("Read Type : " + bb);
         var status = reader.process(bb);
         if (status != DONE) return status;
         var msg = reader.get();
@@ -88,7 +87,6 @@ public class HTTPReader implements Reader<HTTPPacket> {
         return DONE;
     }
     private ProcessStatus readHeader(ByteBuffer bb) {
-        System.out.println("Read Header : " + bb);
         ProcessStatus status;
         while ((status = reader.process(bb)) == DONE) {
             var line = reader.get();
@@ -99,29 +97,22 @@ public class HTTPReader implements Reader<HTTPPacket> {
             }
             if (line.startsWith("Content-Type:")) {
                 contentType = line.substring(13).trim();
-                System.out.println("content type : " + contentType);
             } else if (line.startsWith("Resource:")) {
                 resource = line.substring(9).trim();
-                System.out.println("resource : " + resource);
             } else if (line.startsWith("Content-Length:")) {
                 var size = parseInt(line.substring(15).trim());
                 if (size < 0 || size > BUFFER_MAX_SIZE) return ERROR;
                 buff = ByteBuffer.allocate(size);
-                total_size += size;
-                System.out.println("Size : " + size);
             }
         }
         return status;
     }
     private ProcessStatus readContent(ByteBuffer bb) {
-        System.out.println("Read Content : " + bb);
         if (buff == null) return ERROR;
         moveData(bb.flip(), buff);
         bb.compact();
-        System.out.println(buff);
         if (buff.hasRemaining()) return REFILL;
         packet = createGoodResponse(contentType, buff, resource);
-        System.out.println("Total : " + total_size);
         return DONE;
     }
     @Override
@@ -130,21 +121,6 @@ public class HTTPReader implements Reader<HTTPPacket> {
         if (packet.type() != GOOD_RESPONSE) return packet;
         return createGoodResponse(contentType, copyBuffer(buff).flip(), resource);
     }
-
-    /**
-     * Copy every data between 0 and {@code buff.limit()} inside a new buffer.
-     * @param buff the buffer to copy. Will be the same before and after the call of this method.
-     * @return the new buffer in write-mode. The size of this buffer is {@code buff.limit()}.
-     */
-    // TODO : move elsewhere
-    public static ByteBuffer copyBuffer(ByteBuffer buff) {
-        var bb = ByteBuffer.allocate(buff.limit());
-        for (var i = 0; i < buff.limit(); i++) {
-            bb.put(buff.get(i));
-        }
-        return bb;
-    }
-
     @Override
     public void reset() {
         contentType = OTHER_CONTENT;

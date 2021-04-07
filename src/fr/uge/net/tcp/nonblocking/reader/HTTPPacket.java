@@ -30,11 +30,10 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     }
     public enum HTTPPacketType {REQUEST, GOOD_RESPONSE, BAD_RESPONSE}
 
-    /**
-     * ------------------------------------------------
-     *                 FACTORY METHODS
-     * ------------------------------------------------
-     */
+
+    // ------------------------------------------------
+    //                 FACTORY METHODS
+    // ------------------------------------------------
 
     public static HTTPPacket createBadResponse() {
         return new HTTPPacket(BAD_RESPONSE, null, null, null);
@@ -48,6 +47,10 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     public static HTTPPacket createRequest(String resource) {
         return new HTTPPacket(REQUEST, null, null, resource);
     }
+
+    // ------------------------------------------------
+    //               CONVERSION METHODS
+    // ------------------------------------------------
 
     /**
      * @return this object as a buffer in read-mode.

@@ -16,9 +16,10 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import static fr.uge.net.tcp.nonblocking.Config.*;
+import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
+import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.Config.CONTENT_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeTokenPacket;
-import static fr.uge.net.tcp.nonblocking.client.ClientChatOS.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
 import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
@@ -49,9 +50,7 @@ class PrivateConnectionContext implements Context {
         queue.add(makeTokenPacket(token, other).toBuffer().flip());
     }
     private void processIn() {
-        System.out.println(bbIn);
         var status = reader.process(bbIn);
-        System.out.println(status);
         if (status != DONE) return;
         var packet = reader.get();
         reader.reset();
@@ -69,14 +68,10 @@ class PrivateConnectionContext implements Context {
             }
             case GOOD_RESPONSE -> {
                 if (TEXT_CONTENT.equals(packet.contentType())) {
-                    System.out.println("txt : " + packet);
                     writeAsText(packet.content());
                 } else {
-                    System.out.println("other : " + packet);
                     writeAsData(packet.content(), packet.resource());
                 }
-                System.out.println(bbIn);
-                System.out.println("---------------------");
             }
             case BAD_RESPONSE -> System.out.println("Bad request : " + packet.resource());
         }
@@ -85,7 +80,6 @@ class PrivateConnectionContext implements Context {
         queueMessage(HTTPPacket.createRequest(msg).toBuffer());
     }
     public void queueMessage(ByteBuffer buff) {
-        System.out.println(buff);
         queue.add(buff);
         processOut();
         updateInterestOps();
@@ -114,10 +108,8 @@ class PrivateConnectionContext implements Context {
     }
     @Override
     public void doWrite() throws IOException {
-        System.out.println("bbOut = " + bbOut);
         sc.write(bbOut.flip());
         bbOut.compact();
-        System.out.println("bbOut = " + bbOut);
         processOut();
         updateInterestOps();
     }

@@ -1,6 +1,7 @@
 package fr.uge.net.tcp.nonblocking.reader;
 
 import java.nio.ByteBuffer;
+
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;

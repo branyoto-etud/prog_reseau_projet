@@ -5,7 +5,7 @@ import fr.uge.net.tcp.nonblocking.Packet;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
-import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
+import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.ERROR_RECOVER;
 
 public record ServerMessageDisplay(String pseudo) {
     private static final String ANSI_PALE_YELLOW = "\u001B[38:5:214m";

@@ -4,6 +4,8 @@ import fr.uge.net.tcp.nonblocking.Packet;
 
 import static java.util.Objects.requireNonNull;
 
+// Todo : Try factorise with ServerMessageDisplay
+// Todo : Group colors (maybe make a class with static field + method that takes rgb and returns String)
 public class ClientMessageDisplay {
     private static final String ANSI_DARK_RED = "\u001B[38:5:88m";
     private static final String ANSI_BRIGHT_RED = "\u001B[91m";
