@@ -181,10 +181,15 @@ public class ClientChatOS {
         sc = SocketChannel.open();
         sc.configureBlocking(false);
     }
+
+    /**
+     * Console tread.
+     * Read a line and send it to {@link #mainContext}.
+     */
     private void consoleRun() {
         try (var scan = new Scanner(System.in)){    // Todo : Possible use of BufferedReader to avoid System.exit();
             while (scan.hasNextLine()) {
-                sendCommand(scan.nextLine());
+                sendLine(scan.nextLine());
             }
         } catch (IOException e) {
             logger.severe("Cannot create a socket for a private connection!");
@@ -192,19 +197,39 @@ public class ClientChatOS {
             logger.info("Console thread stopping!");
         }
     }
-    private void sendCommand(String msg) throws IOException {
-        if (msg.isBlank()) return;
+
+    /**
+     * Send the line to the {@link #mainContext} if not empty.
+     * And wakeup the main thread.
+     *
+     * @param line the line to send.
+     * @throws IOException if the {@link #selector} is closed.
+     */
+    private void sendLine(String line) throws IOException {
+        if (line.isBlank()) return;
         synchronized (commandQueue) {
-            commandQueue.add(msg);
+            commandQueue.add(line);
             selector.wakeup();
         }
     }
-    private void processCommands() {
+
+    /**
+     * Actually send the line to the {@link #mainContext}.
+     */
+    private void processLine() {
         synchronized (commandQueue) {
             if (commandQueue.isEmpty()) return;
             mainContext.queueMessage(commandQueue.remove());
         }
     }
+
+    /**
+     * Creates a new socket to register to the server as a private connection.
+     *
+     * @param pseudo the pseudo of the client.
+     * @return the new context.
+     * @throws IOException if the socket cannot be created nor registered to the {@link #selector}.
+     */
     private PrivateConnectionContext createPrivateConnection(String pseudo) throws IOException {
         var pc = SocketChannel.open();
         pc.configureBlocking(false);
@@ -226,7 +251,7 @@ public class ClientChatOS {
         while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
-                processCommands();
+                processLine();
             } catch (UncheckedIOException tunneled) {
                 console.interrupt();
                 silentlyClose(key.channel());
