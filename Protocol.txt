@@ -79,7 +79,7 @@ Résumé
             1 Connection (AUTH)
             2 Message général (GMSG)
             3 Message direct (DMSG)
-            4 Connection privée (CP)
+            4 Connection privée (PC)
             5 Identification (TOKEN)
 
     Le premier octet de chaque paquets représente l'un des codes ci-dessus
@@ -140,13 +140,13 @@ Résumé
    (A-t-on besoin d'identifier le packet pour que l'utilisateur sache quel
    packet est incorrect? Si oui ajouter au packet d'erreur pseudo incorrect!)
 
-    D. Connection Privée (CP) & Identification (TOKEN)
+    D. Connection Privée (PC) & Identification (TOKEN)
 
                    1 octet   4 octets (int)    string
                    -----------------------------------
                   |     4 | taille du pseudo | pseudo |
                    -----------------------------------
-                         Figure 3-D-1: paquet CP
+                         Figure 3-D-1: paquet PC
 
                          1 octet   4 octets (int)
                         -------------------------
@@ -154,10 +154,10 @@ Résumé
                         -------------------------
                         Figure 3-D-2: paquet TOKEN
 
-   Le paquet CP demande indique qu'un client (A) veut se connecter à un autre
+   Le paquet PCPC demande indique qu'un client (A) veut se connecter à un autre
    client (B).
    Si ce paquet a été envoyé par le client A, le serveur interpretera le pseudonyme
-   comme celui du destinataire et un paquet de requête de connection privée (CP)
+   comme celui du destinataire et un paquet de requête de connection privée (PC)
    sera envoyé au client B contenant cette fois ci le pseudo du client A.
    Ensuite le client B aura deux choix: accepter la connection (auquel cas il
    va envoyer un paquet similaire à celui envoyé par le client A, càd contenant
@@ -216,7 +216,7 @@ Formats ChatOS
   DMSG    |    3 | taille du message | message | taille du pseudo | pseudo |
            ----------------------------------------------------------------
            ------------------------------------
-  CP      |    4 |  taille du pseudo |  pseudo |
+  PC      |    4 |  taille du pseudo |  pseudo |
            ------------------------------------
             octet  integer
            ---------------

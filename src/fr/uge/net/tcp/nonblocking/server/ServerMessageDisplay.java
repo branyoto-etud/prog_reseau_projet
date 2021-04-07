@@ -35,7 +35,7 @@ public record ServerMessageDisplay(String pseudo) {
             case AUTH -> onBadAuthPacket(p.pseudo());
             case GMSG -> onGMSGPacket(p.message());
             case DMSG -> onDMSGPacket(p.message(), p.pseudo());
-            case CP -> onCPPacket(p.pseudo());
+            case PC -> onPCPacket(p.pseudo());
             case TOKEN -> onBadTokenPacket();
         }
     }
@@ -68,7 +68,7 @@ public record ServerMessageDisplay(String pseudo) {
         System.out.println("Received a TOKEN packet from " + sc(sc) + " with content " +
                 message("" + token) + " authentication success.");
     }
-    public void onCPPacket(String other) {
+    public void onPCPacket(String other) {
         System.out.println("A connection between " + me() + " and " + other(other) + " has been received from " + me());
     }
     public void onDMSGPacket(String msg, String other) {

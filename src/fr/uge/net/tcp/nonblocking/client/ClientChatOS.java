@@ -56,7 +56,7 @@ public class ClientChatOS {
                 case ERR -> treatError(packet);     // Do an action on error
                 case AUTH -> connected = true;      // Validate connection
                 case GMSG, DMSG -> {}               // Only need to be displayed (already done)
-                case CP -> {
+                case PC -> {
                     // If there is no pending connection, this is the client B
                     if (!pendingConnection.containsKey(packet.pseudo())) requester = packet.pseudo();
                     // Otherwise wait for a TOKEN packet

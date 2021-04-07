@@ -71,8 +71,8 @@ public class ServerChatOS {
             } else if (packet.type() == TOKEN) {
                 var token = Integer.parseInt(packet.message());
                 new ServerMessageDisplay("").onTokenPacket(sc, token);
-                if (privateCP.containsKey(token)) {
-                    privateCP.get(token).addSelectionKey(key, bbIn);
+                if (privateConnections.containsKey(token)) {
+                    privateConnections.get(token).addSelectionKey(key, bbIn);
                 }
             }
         }
@@ -159,8 +159,8 @@ public class ServerChatOS {
                 case ERR -> {
                     if (packet.code() == REJECTED) {
                         var token = generateToken(pseudo, packet.pseudo());
-                        if (pendingCP.contains(token)) {  // If pending request -> accept
-                            pendingCP.remove(token);
+                        if (pendingPC.contains(token)) {  // If pending request -> accept
+                            pendingPC.remove(token);
                             if (clients.containsKey(packet.pseudo()))
                                 clients.get(packet.pseudo()).queueMessage(makeRejectedPacket(pseudo));
                         }
@@ -174,21 +174,21 @@ public class ServerChatOS {
                         clients.get(packet.pseudo()).queueMessage(makeDirectMessagePacket(packet.message(), pseudo));
                     }
                 }
-                case CP -> {
+                case PC -> {
                     if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
                         queueMessage(makeErrorPacket(DEST_ERROR));
                         return;
                     }
                     var token = generateToken(pseudo, packet.pseudo());
-                    if (privateCP.containsKey(token)) {         // Already connected
+                    if (privateConnections.containsKey(token)) {         // Already connected
                         System.out.println("Already connected!");
-                    } else if (pendingCP.contains(token)) {     // Client B accept the connection
-                        pendingCP.remove(token);
-                        privateCP.put(token, new PrivateConnection());
+                    } else if (pendingPC.contains(token)) {     // Client B accept the connection
+                        pendingPC.remove(token);
+                        privateConnections.put(token, new PrivateConnection());
                         queueMessage(makeTokenPacket(token, packet.pseudo()));
                         clients.get(packet.pseudo()).queueMessage(makeTokenPacket(token, pseudo));
                     } else {
-                        pendingCP.add(token);
+                        pendingPC.add(token);
                         clients.get(packet.pseudo()).queueMessage(makePrivateConnectionPacket(pseudo));
                     }
                 }
@@ -317,9 +317,9 @@ public class ServerChatOS {
     static private final Logger logger = Logger.getLogger(ServerChatOS.class.getName());
 
     private final HashMap<SelectionKey, Context> changing = new HashMap<>();
-    private final HashMap<Integer, PrivateConnection> privateCP = new HashMap<>();
+    private final HashMap<Integer, PrivateConnection> privateConnections = new HashMap<>();
     private final HashMap<String, ClientContext> clients = new HashMap<>();
-    private final HashSet<Integer> pendingCP = new HashSet<>();
+    private final HashSet<Integer> pendingPC = new HashSet<>();
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
 

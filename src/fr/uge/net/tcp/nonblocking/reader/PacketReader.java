@@ -99,7 +99,7 @@ public class PacketReader implements Reader<Packet> {
                 if (status == DONE) packet = makeDirectMessagePacket(element, reader.get());    // If success create the packet
                 return status;                                                                  // Returns the status
             }
-            case CP -> {
+            case PC -> {
                 var status = reader.process(bb);                                            // Tries to read a string
                 if (status == ERROR) failure = LENGTH;                                      // If error it's the string's length
                 if (status == DONE) packet = makePrivateConnectionPacket(reader.get());     // If success create the packet

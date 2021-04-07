@@ -91,7 +91,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     /**
      * Type of the different packets.
      */
-    public enum PacketType {ERR, AUTH, GMSG, DMSG, CP, TOKEN}
+    public enum PacketType {ERR, AUTH, GMSG, DMSG, PC, TOKEN}
     /**
      * Possible error codes.
      */
@@ -121,7 +121,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
             case AUTH -> authToBuffer();
             case GMSG -> generalToBuffer();
             case DMSG -> directToBuffer();
-            case CP -> privateToBuffer();
+            case PC -> privateToBuffer();
             case TOKEN -> tokenToBuffer();
         };
     }
