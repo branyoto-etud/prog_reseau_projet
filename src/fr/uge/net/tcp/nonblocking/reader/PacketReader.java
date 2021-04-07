@@ -4,6 +4,7 @@ import fr.uge.net.tcp.nonblocking.Packet;
 import fr.uge.net.tcp.nonblocking.Packet.PacketType;
 
 import java.nio.ByteBuffer;
+import java.util.function.Function;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.REJECTED;
@@ -14,9 +15,12 @@ import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.util.Objects.requireNonNull;
 
 public class PacketReader implements Reader<Packet> {
+    /**
+     * Type of failure that can appear.
+     */
     public enum ProcessFailure {CODE, LENGTH}
-
-    private final ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES); // Used to read a TOKEN
+    // Always in write-mode.
+    private final ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
     private final StringReader reader = new StringReader();
     private ProcessFailure failure = null;
     private ProcessStatus status = REFILL;
@@ -66,7 +70,33 @@ public class PacketReader implements Reader<Packet> {
         return status;
     }
 
+    /**
+     *
+     * @param bb the buffer where to read data. Must be in write-mode.
+     * @return the current state of this reader.
+     */
     private ProcessStatus subProcess(ByteBuffer bb) {
+        var status = readType(bb);
+        if (status != DONE) return status;
+        return switch (type) {
+            case ERR -> processError(bb);
+            case AUTH -> makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makeAuthenticationPacket);
+            case GMSG -> makePacketOnDone(bb, this::processTwoString, s -> makeGeneralMessagePacket(element, s));
+            case DMSG -> makePacketOnDone(bb, this::processTwoString, s -> makeDirectMessagePacket(element, s));
+            case PC -> makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makePrivateConnectionPacket);
+            case TOKEN -> processToken(bb);
+        };
+    }
+
+    /**
+     * This method reads something only if {@link #type} is null.<br>
+     * Reads the first byte of the buffer and store it in {@link #type}.
+     *
+     * @param bb the buffer where to read data. Must be in write-mode.
+     * @return DONE if successful or ERROR if the read type is incorrect
+     * (not between 0 and {@code PacketType.values().length}).
+     */
+    private ProcessStatus readType(ByteBuffer bb) {
         if (type == null) {
             var t = bb.flip().get();
             bb.compact();
@@ -76,92 +106,116 @@ public class PacketReader implements Reader<Packet> {
             }
             type = PacketType.values()[t];
         }
+        return DONE;
+    }
 
-        switch (type) {
-            case ERR -> {
-                return processError(bb);
-            }
-            case AUTH -> {
-                var status = reader.process(bb);                                        // Tries to read a string
-                if (status == DONE) packet = makeAuthenticationPacket(reader.get());    // If success create the packet
-                if (status == ERROR) failure = LENGTH;                                  // If error it's the string length
-                return status;                                                          // Returns the status
-            }
-            case GMSG -> {
-                var status = processTwoString(bb);                                              // Tries to read two strings
-                if (status == ERROR) failure = LENGTH;                                          // If error it's the string's length
-                if (status == DONE) packet = makeGeneralMessagePacket(element, reader.get());   // If success create the packet
-                return status;                                                                  // Returns the status
-            }
-            case DMSG -> {
-                var status = processTwoString(bb);                                              // Tries to read two strings
-                if (status == ERROR) failure = LENGTH;                                          // If error it's the string's length
-                if (status == DONE) packet = makeDirectMessagePacket(element, reader.get());    // If success create the packet
-                return status;                                                                  // Returns the status
-            }
-            case PC -> {
-                var status = reader.process(bb);                                            // Tries to read a string
-                if (status == ERROR) failure = LENGTH;                                      // If error it's the string's length
-                if (status == DONE) packet = makePrivateConnectionPacket(reader.get());     // If success create the packet
-                return status;                                                              // Returns the status
-            }
-            case TOKEN -> {
-                if (token == -1) {
-                    if (moveData(bb.flip(), buff)) {    // Tries to read an int
-                        bb.compact();                   // Back to write-mode
-                        return REFILL;                  // Need REFILL
-                    }
-                    bb.compact();                       // Back to write-mode
-                    token = buff.flip().getInt();       // Get int
-                }
-                var status = reader.process(bb);        // Tries read a string
-                if (status == ERROR) failure = LENGTH;  // If error it's the string's length
-                if (status == DONE)                     // Success -> create packet
-                    packet = makeTokenPacket(token, reader.get());
-                return status;                          // All case -> return status
+    /**
+     * Reads one byte for the error code and if the code is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}
+     * read an int and a string.
+     * The returned value can be:
+     * <ul>
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
+     *     if the reader has finished reading.
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
+     *     if {@code bb} is empty or if the code is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED} and
+     *     the int or the string cannot be read.
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
+     *     if the error code read is invalid (sets {@link #failure} to {@link ProcessFailure#CODE}).
+     *     Or if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).
+     * </ul>
+     *
+     * @param bb buffer in write-mode.
+     * @return the current status of the reader.
+     * @see fr.uge.net.tcp.nonblocking.Packet.PacketBuilder#makeErrorPacket(byte)
+     */
+    private ProcessStatus processError(ByteBuffer bb) {
+        if (errorCode == -1) {
+            try {
+                if (!bb.flip().hasRemaining()) return REFILL;
+                errorCode = bb.get();
+            } finally {
+                bb.compact();
             }
         }
-        // Shouldn't happen
+        if (errorCode == REJECTED.ordinal())
+            return makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makeRejectedPacket);
+        if ((packet = makeErrorPacket(errorCode)) != null) return DONE;
         failure = CODE;
         return ERROR;
     }
 
-    private ProcessStatus processTwoString(ByteBuffer bb) {
-        if (element == null) {                  // If this is the first string to be read
-            var status = reader.process(bb);    // Tries to read it
-            if (status != DONE) return status;  // If not successful return the status
-            element = reader.get();             // Otherwise take the element
-            reader.reset();                     // And reset the reader
-        }
-        return reader.process(bb);              // If this is the second string only return the process status.
-    }
-
     /**
+     * Read the token (i.e. an integer) and after a pseudo.
+     * The returned value can be:
+     * <ul>
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
+     *     if the reader has finished reading.
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
+     *     if {@code bb} has less than an integer or if the int or the string cannot be read.
+     *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
+     *     if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).
+     * </ul>
      * @param bb buffer in write-mode.
      * @return the current status of the reader.
      */
-    private ProcessStatus processError(ByteBuffer bb) {
-        if (errorCode == -1) {
-            if (!bb.flip().hasRemaining()) {
+    private ProcessStatus processToken(ByteBuffer bb) {
+        if (token == -1) {
+            try {
+                if (moveData(bb.flip(), buff)) return REFILL;
+            } finally {
                 bb.compact();
-                return REFILL;
             }
-            errorCode = bb.get();
-            bb.compact();
+            token = buff.flip().getInt();
         }
-        if (errorCode != REJECTED.ordinal()) {
-            if ((packet = makeErrorPacket(errorCode)) != null) return DONE;
-            failure = CODE;
-            return ERROR;
-        }
+        return makePacketOnDone(bb, reader::process, s -> makeTokenPacket(token, s));
+    }
 
-        // If the code is REJECTED
-        var status = reader.process(bb);        // Tries to read a string
-        if (status == ERROR) failure = LENGTH;  // If error it's the string's length
-        if (status != DONE) return status;      // If not successful return the status
-        element = reader.get();                 // Otherwise take the element
-        packet = makeRejectedPacket(element);   // Creates a REJECTED packet
-        return DONE;
+    /**
+     * Sub method used to factorize every creation of a packet.
+     * Processes the data from {@code bb} inside {@code processor}.<br>
+     * If an error is returned : sets {@link #failure} to {@link ProcessFailure#LENGTH}.<br>
+     * If the processing is completed : create a packet using {@code creator} and what's inside of {@link #reader}.
+     * Stores the result inside {@link #packet}.
+     *
+     * @param processor a function that can processes a {@link ByteBuffer} in write-mode. Cannot be null.
+     * @param creator a function that takes a String and creates a packet with it. Cannot be null.
+     * @param bb buffer in write-mode.
+     * @return the current status of the reader.
+     */
+    private ProcessStatus makePacketOnDone(ByteBuffer bb, Function<ByteBuffer, ProcessStatus> processor,
+                                           Function<String, Packet> creator) {
+        requireNonNull(processor);
+        requireNonNull(creator);
+        var status = processor.apply(bb);
+        if (status == ERROR) failure = LENGTH;
+        if (status == DONE) packet = creator.apply(reader.get());
+        return status;
+    }
+
+    /**
+     * Processes two string that are following each other using a {@link StringReader}.
+     *
+     * @param bb buffer in write-mode.
+     * @return the current status of the reader.
+     * @see StringReader
+     */
+    private ProcessStatus processTwoString(ByteBuffer bb) {
+        if (element == null) {
+            var status = reader.process(bb);
+            if (status != DONE) return status;
+            element = reader.get();
+            reader.reset();
+        }
+        return reader.process(bb);
+    }
+
+    /**
+     * @return the failure code.
+     * @throws IllegalStateException if the reader hasn't failed.
+     */
+    public ProcessFailure getFailure() {
+        if (status != ERROR) throw new IllegalStateException("Cannot get failure if not failed");
+        return failure;
     }
 
     /**
@@ -192,8 +246,4 @@ public class PacketReader implements Reader<Packet> {
         token = -1;
     }
 
-    public ProcessFailure getFailure() {
-        if (status != ERROR) throw new IllegalStateException("Cannot get failure if not failed");
-        return failure;
-    }
 }
