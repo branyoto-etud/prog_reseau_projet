@@ -31,16 +31,21 @@ public class ChatOSUtils {
     public static boolean moveData(ByteBuffer src, ByteBuffer dest) {
         requireNonNull(src);
         requireNonNull(dest);
-        if (src.remaining()<=dest.remaining()){             // If the output buffer capacity is greater than input buffer
-            dest.put(src);                                  // Reads everything
-        } else {                                            // Otherwise
-            int oldLimit = src.limit();                     // Remembers the old limit
-            src.limit(src.position() + dest.remaining());   // Sets the new limit to the correct value
-            dest.put(src);                                  // Reads data
-            src.limit(oldLimit);                            // Resets to the old limit
+        // Reads everything if enough space
+        if (src.remaining() <= dest.remaining()){
+            dest.put(src);
+        } else { // Reads only what can be read
+            int oldLimit = src.limit();
+            src.limit(src.position() + dest.remaining());
+            dest.put(src);
+            src.limit(oldLimit);
         }
-        return dest.hasRemaining();                         // Returns true if the buffer is not full
+        return dest.hasRemaining();
     }
+    /**
+     * Tries to close the channel if not already closed.
+     * @param channel the channel to close.
+     */
     public static void silentlyClose(Channel channel) {
         try {
             channel.close();
