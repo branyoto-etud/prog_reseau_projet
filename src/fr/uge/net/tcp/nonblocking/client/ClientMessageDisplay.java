@@ -4,6 +4,23 @@ import fr.uge.net.tcp.nonblocking.Packet;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ *
+ *
+ *
+ *
+ * PAS DE DOC ELLE VA DEGAGER
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ */
+
 // Todo : Try factorise with ServerMessageDisplay
 // Todo : Group colors (maybe make a class with static field + method that takes rgb and returns String)
 public class ClientMessageDisplay {

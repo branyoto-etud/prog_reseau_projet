@@ -7,6 +7,24 @@ import java.nio.channels.SocketChannel;
 
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.ERROR_RECOVER;
 
+/**
+ *
+ *
+ *
+ *
+ * PAS DE DOC ELLE VA DEGAGER
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ */
+
+
 public record ServerMessageDisplay(String pseudo) {
     private static final String ANSI_PALE_YELLOW = "\u001B[38:5:214m";
     private static final String ANSI_DARK_RED = "\u001B[38:5:88m";
