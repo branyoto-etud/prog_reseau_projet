@@ -468,7 +468,7 @@ public class ServerChatOS {
 
     /**
      * Do the available action (whether Accept, Write or Read) on the key.
-     * If a key (other than {@link #serverSocketChannel}) is closed unregister
+     * If a key (other than {@link #serverSocketChannel}) is closed unregisters
      * it properly and remove it from the {@link #clients} if it's a client.
      *
      * @param key the current key to treat.
