@@ -6,11 +6,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.AbstractList;
 import java.util.LinkedList;
 import java.util.Objects;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
+import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
 import static java.nio.channels.SelectionKey.OP_READ;
 import static java.nio.channels.SelectionKey.OP_WRITE;
 
@@ -25,7 +28,7 @@ public abstract class AbstractContext implements Context {
     /**
      * The stored buffers are in read-mode.
      */
-    private final LinkedList<ByteBuffer> queue = new LinkedList<>();
+    final LinkedList<ByteBuffer> queue = new LinkedList<>();
     /**
      * Input buffer is in write-mode.
      */
@@ -41,32 +44,28 @@ public abstract class AbstractContext implements Context {
         this.key = Objects.requireNonNull(key);
         sc = (SocketChannel) key.channel();
     }
-
     /**
      * Reads what's inside bbIn and do something with it.
      */
     abstract void processIn();
-
     /**
-     * Adds this message to the queue and tries to fill {@link #bbOut}.
-     * @param msg the message to send.
+     * Adds this buffer to the queue and tries to fill {@link #bbOut}.
+     * @param buff the buffer in write mode to add to the {@link #queue} to send.
      */
-    public void queueMessage(Packet msg) {
-        queue.add(msg.toBuffer());
+    public void queueMessage(ByteBuffer buff) {
+        queue.add(buff);
         processOut();
         updateInterestOps();
     }
-
     /**
      * Takes an element from the {@link #queue} and
      * stores it into {@link #bbOut} if empty.
      */
-    private void processOut() {
+    public void processOut() {
         if (queue.isEmpty() || bbOut.position() != 0) return;
         bbOut.clear()
              .put(queue.remove());
     }
-
     /**
      * Updates the interest operators of {@link #key} based on the values inside
      * {@link #bbIn} and {@link #bbOut}.
@@ -79,7 +78,7 @@ public abstract class AbstractContext implements Context {
      *
      * @return the value of the operator assigned to the key.
      */
-    private int updateInterestOps() {
+    public int updateInterestOps() {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
@@ -87,7 +86,6 @@ public abstract class AbstractContext implements Context {
         else                                key.interestOps(op);
         return op;
     }
-
     /**
      * Reads data in {@link #bbOut}.
      * If there's no data to read, {@link #closed} is sets to true.
@@ -112,7 +110,6 @@ public abstract class AbstractContext implements Context {
         processOut();
         updateInterestOps();
     }
-
     /**
      * If the connection is successful, update interest operator.
      *
@@ -120,8 +117,13 @@ public abstract class AbstractContext implements Context {
      */
     @Override
     public void doConnect() throws IOException {
-        if (sc.finishConnect()) {
+        try {
+            if (!sc.finishConnect()) return;
+            onConnectSuccess();
             key.interestOps(SelectionKey.OP_READ);
+        } catch (IOException ioe) {
+            onConnectFail();
+            throw ioe;
         }
     }
 }

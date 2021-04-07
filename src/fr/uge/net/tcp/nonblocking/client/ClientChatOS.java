@@ -6,158 +6,216 @@ import fr.uge.net.tcp.nonblocking.reader.PacketReader;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
-import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
+import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onMessageReceived;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
 public class ClientChatOS {
-    private class MainContext implements Context {
-        private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
+    private class MainContext extends AbstractContext implements Context {
         private final PacketReader reader = new PacketReader();
-        private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Stored buffer are in read-mode
-        private final SelectionKey key;
-        private final SocketChannel sc;
+        private boolean connected = false;
         private String requester = null;
-        private boolean connected;
-        private boolean closed;
         private String pseudo;
 
-        public MainContext(SelectionKey key_){
-            sc = (SocketChannel) key_.channel();
-            connected = false;
-            closed = false;
-            key = key_;
+        public MainContext(SelectionKey key){
+            super(key);
         }
-        private void processIn() throws IOException {
-            var status = reader.process(bbIn);              // Processes the buffer
-            if (status == REFILL) return;                   // If needs refill -> stop
-            if (status == DONE) treatPacket(reader.get());  // If done -> treats the packet
-            reader.reset();                                 // Resets the buffer
+
+        /**
+         * Processes {@link #bbIn} into the {@link #reader}.
+         * If the {@link #reader} has finished, analyse it.
+         */
+        public void processIn() {
+            var status = reader.process(bbIn);
+            if (status == REFILL) return;
+            if (status == DONE) treatPacket(reader.get());
+            reader.reset();
         }
-        private void treatPacket(Packet packet) throws IOException {
+
+        /**
+         * Analyses the {@code packet} and choose what to do:<br/>
+         *     - Recover from an error<br/>
+         *     - Validate connection<br/>
+         *     - Accept private connection<br/>
+         *     - Reject private connection<br/>
+         *     - Start a new socket for a private connection<br/>
+         * @param packet the packet to analyse.
+         */
+        private void treatPacket(Packet packet) {
             onMessageReceived(packet, pseudo);
             switch (packet.type()) {
-                case ERR -> treatError(packet);     // Do an action on error
-                case AUTH -> connected = true;      // Validate connection
-                case GMSG, DMSG -> {}               // Only need to be displayed (already done)
-                case PC -> {
-                    // If there is no pending connection, this is the client B
-                    if (!pendingConnection.containsKey(packet.pseudo())) requester = packet.pseudo();
-                    // Otherwise wait for a TOKEN packet
-                }
-                case TOKEN -> {
-                    var ctx = createPrivateConnection(packet);
-                    if (pendingConnection.containsKey(packet.pseudo())) {
-                        ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
-                    }
-                }
+                case ERR -> treatError(packet);
+                case AUTH -> connected = true;
+                case GMSG, DMSG -> {}
+                case PC -> onPrivateConnection(packet);
+                case TOKEN -> onToken(packet);
             }
         }
+
+        /**
+         * If the client receive a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#PC} packet,
+         * there's 2 options:<br>
+         *  - This is the client who sent the request and this packet is a positive response.
+         *  In this case we wait for the {@link  fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN}
+         *  packet from the server to start te private connection.<br>
+         *  - This isn't the client who sent the request, so we put this client in wait mode until
+         *  he enter 'y' or 'n' to refuse/accept the connection.
+         * @param packet the received packet.
+         */
+        private void onPrivateConnection(Packet packet) {
+            if (!pendingConnection.containsKey(packet.pseudo())) {
+                requester = packet.pseudo();
+            }
+        }
+
+        /**
+         * When the client receive a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN} packet,
+         * we need to starts a new socket and connects it to the server.
+         * @param packet the received packet.
+         */
+        private void onToken(Packet packet) {
+            try {
+                var ctx = createPrivateConnection(packet);
+                if (pendingConnection.containsKey(packet.pseudo())) {
+                    ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
+                }
+            } catch (IOException ioe) {
+                System.out.println("Cannot open a new socket for a private connection!");
+            }
+        }
+
+        /**
+         * On error reception, do an action.
+         * <ul>
+         *     <li> If the error is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}, remove the request from
+         *     the {@link #pendingConnection}.
+         *     <li> If the error is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#WRONG_CODE}
+         *     or {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#INVALID_LENGTH}, send an amend packet to let the server
+         *     know that he's not ignoring packets anymore.
+         *     <li> The other error are just displayed.
+         * </ul>
+         *
+         * @param packet the packet that contains the error.
+         */
         private void treatError(Packet packet) {
             switch (packet.code()) {
                 case AUTH_ERROR, DEST_ERROR -> {}
                 case REJECTED -> pendingConnection.remove(packet.pseudo());
                 case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
-                case WRONG_CODE, INVALID_LENGTH -> {
-                    queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
-                    processOut();
-                    updateInterestOps();
-                }
+                case WRONG_CODE, INVALID_LENGTH -> queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
             }
         }
-        public void queueMessage(String msg) {
+        /**
+         * Add {@code line} to the end of the {@link #queue} after a treatment.<br>
+         * If the client is currently locked by a private connection request, accept only {@code line}
+         * that starts with 'n' or 'y'.<br>
+         * Otherwise, send the line inside a packet as a general message, a direct message
+         * or a private connection request depending on the {@code line} content.
+         *
+         * @param line the line to queue. Cannot be null.
+         */
+        public void queueMessage(String line) {
+            requireNonNull(line);
             if (requester != null) {
-                whileWaiting(msg);
+                whileWaiting(line);
             } else {
-                queue.add(parseInput(msg).toBuffer());
+                parseInput(line);
             }
-            processOut();
-            updateInterestOps();
         }
-        private void whileWaiting(String msg) {
-            if (msg.toLowerCase().startsWith("y")) {
-                queue.add(makePrivateConnectionPacket(requester).toBuffer());
+
+        /**
+         * Add {@code packet} to the end of the {@link #queue} after a conversion to a buffer.
+         * @param packet the packet to queue. Cannot be null.
+         */
+        public void queueMessage(Packet packet) {
+            requireNonNull(packet);
+            queueMessage(packet.toBuffer());
+        }
+        /**
+         * While the input is locked by a private connection request, only accept line
+         * that starts with 'y' for an acceptation or 'n' for a reject. (the case doesn't matter)<br>
+         * Any other {@code line} content will be ignored.
+         * Note : The rest of te {@code line} is ignored.
+         *
+         * @param line the line to parse.
+         */
+        private void whileWaiting(String line) {
+            requireNonNull(line);
+            if (line.toLowerCase().startsWith("y")) {
+                queueMessage(makePrivateConnectionPacket(requester).toBuffer());
                 requester = null;
-            } else if (msg.toLowerCase().startsWith("n")) {
-                queue.add(makeRejectedPacket(requester).toBuffer());
+            } else if (line.toLowerCase().startsWith("n")) {
+                queueMessage(makeRejectedPacket(requester).toBuffer());
                 requester = null;
             }
         }
-        private Packet parseInput(String msg) {
-            if (!connected) {
-                pseudo = msg;
-                return makeAuthenticationPacket(msg);
-            }
-            if (msg.startsWith("@")) {
-                var tokens = msg.substring(1).split(" ", 2);
-                if (tokens.length == 2) return makeDirectMessagePacket(tokens[1], tokens[0]);
-            }
-            if (msg.startsWith("/")) {
-                var tokens = msg.substring(1).split(" ", 2);
-                if (tokens.length == 2) {
-                    if (privateConnections.containsKey(tokens[0])) {        // Already connected to that client
-                        privateConnections.get(tokens[0]).queueMessage(tokens[1]);
-                    } else {
-                        pendingConnection.put(tokens[0], tokens[1]);
-                    }
-                    return makePrivateConnectionPacket(tokens[0]);
-                }
-            }
-            return msg.startsWith("\\@") || msg.startsWith("\\/") ?
-                    makeGeneralMessagePacket(msg.substring(1), pseudo) : makeGeneralMessagePacket(msg, pseudo);
+        /**
+         * Send a message depending on the first chars of the {@code line}:
+         *  - if the {@code line} starts with '@', send a direct message if possible.<br>
+         *  - if the {@code line} starts with '/', send a private connection request if possible
+         *  or only a request if the two clients are already connected.<br>
+         *  - if the {@code line} starts with '\@' or '\/', send a general message
+         *  without the '\'.<br>
+         *  - in any fail case, send a general message containing the full {@code line}.
+         * @param line the line to send.
+         */
+        private void parseInput(String line) {
+            requireNonNull(line);
+            if (!connected) queueMessage(makeAuthenticationPacket(pseudo = line).toBuffer());
+            if (line.startsWith("@") && sendDirectMessage(line)) return;
+            if (line.startsWith("/") && sendPrivateConnection(line)) return;
+            queueMessage(makeGeneralMessagePacket(
+                    line.startsWith("\\@") || line.startsWith("\\/") ? line.substring(1) : line, pseudo
+                    ));
         }
-        private void processOut() {
-            while (!queue.isEmpty()){                                       // While there is a message
-                if (queue.peek().remaining() > bbOut.remaining()) break;    // Gets it and break if not enough room in buffOut
-                bbOut.put(queue.remove());                                  // Otherwise -> add into buffOut
+
+        /**
+         * Sends a direct message to the pseudo (i.e. the first word of the {@code line})
+         * with the content of what's left on the {@code line}.
+         * @param line the {@code line} to interpret. Cannot be null.
+         * @return true if the message can be sent; false if the {@code line} contains less than two words.
+         */
+        private boolean sendDirectMessage(String line) {
+            requireNonNull(line);
+            var tokens = line.substring(1).split(" ", 2);
+            if (tokens.length != 2) return false;
+            queueMessage(makeDirectMessagePacket(tokens[1], tokens[0]));
+            return true;
+        }
+
+        /**
+         * Send a private connection request to the pseudo (i.e. the first word of the {@code line})
+         * with the request of what's left on the {@code line}.
+         * If this client is already connected to the pseudo, only send the request to the other client
+         * (not a connection request).
+         *
+         * @param line the {@code line} to interpret. Cannot be null.
+         * @return true if the message can be sent; false if the {@code line} contains less than two words.
+         */
+        private boolean sendPrivateConnection(String line) {
+            requireNonNull(line);
+            var tokens = line.substring(1).split(" ", 2);
+            if (tokens.length != 2) return false;
+
+            if (privateConnections.containsKey(tokens[0])) {
+                privateConnections.get(tokens[0]).queueMessage(tokens[1]);
+            } else {
+                pendingConnection.put(tokens[0], tokens[1]);
+                queueMessage(makePrivateConnectionPacket(tokens[0]));
             }
-        }
-        private void updateInterestOps() {
-            var op=0;
-            if (!closed && bbIn.hasRemaining()) op  = SelectionKey.OP_READ;     // If there's something to read
-            if (bbOut.position()!=0)            op |= SelectionKey.OP_WRITE;    // If there's something to write
-            if (op != 0) key.interestOps(op);
-            else silentlyClose(sc);                                             // If there's nothing to read nor write
-        }
-        @Override
-        public void doRead() throws IOException {
-            if (sc.read(bbIn)==-1) closed = true;
-            processIn();
-            updateInterestOps();
-        }
-        @Override
-        public void doWrite() throws IOException {
-            sc.write(bbOut.flip());
-            bbOut.compact();
-            processOut();
-            updateInterestOps();
-        }
-        @Override
-        public void doConnect() throws IOException {
-            try {
-                if (!sc.finishConnect()) return;
-                onConnectSuccess();
-                key.interestOps(SelectionKey.OP_READ);
-            } catch (IOException ioe) {
-                onConnectFail();
-                throw ioe;
-            }
+            return true;
         }
     }
     private static final Logger logger = Logger.getLogger(ClientChatOS.class.getName());
