@@ -1,5 +1,7 @@
 package fr.uge.net.tcp.nonblocking.reader;
 
+import fr.uge.net.tcp.nonblocking.Config;
+
 import java.nio.ByteBuffer;
 
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
@@ -17,6 +19,22 @@ public class HTTPLineReader implements Reader<String> {
     private ProcessStatus status = REFILL;
     private int pos = -1;
 
+    /**
+     * Processes the buffer and extracts data until the end of a line ({@link #CR}{@link #LF}).
+     * This method remembers what has been processed beforehand.
+     * The returned value can be :
+     * <ul><li>   {@link ProcessStatus#REFILL} :
+     *     if the reader has not finished.
+     * <li>   {@link ProcessStatus#ERROR} : never!
+     * <li>   {@link ProcessStatus#DONE} :
+     *     if the message is ready to be get.
+     *
+     * @param bb the buffer where to read the data.
+     *           Must be in write-mode before being called and will be kept in write-mode after.
+     * @return the current state of the reader.
+     * @throws IllegalStateException if the buffer's state is not {@link ProcessStatus#REFILL}.
+     * @throws NullPointerException if {@code bb} is null.
+     */
     @Override
     public ProcessStatus process(ByteBuffer bb) {
         requireNonNull(bb);
@@ -27,6 +45,15 @@ public class HTTPLineReader implements Reader<String> {
         bb.compact();
         return status;
     }
+
+    /**
+     * Actual loop that read each byte and check if the previous is {@link #CR} and the current {@link #LF}.
+     * If the buffer has not enough space, the content of the buffer is decoded in
+     * {@link java.nio.charset.StandardCharsets#US_ASCII} and put in {@link #lineBuilder}.
+     *
+     * @param bb buffer in read-mode.
+     * @return the current status of the reader.
+     */
     private ProcessStatus subProcess(ByteBuffer bb) {
         while (bb.hasRemaining()) {
             var c = bb.get();
@@ -42,12 +69,21 @@ public class HTTPLineReader implements Reader<String> {
         return REFILL;
     }
 
+    /**
+     * @return the line if the process method has successfully read a line.
+     * @throws IllegalStateException if the process method hasn't finished to read a line.
+     */
     @Override
     public String get() {
         if (status == DONE) return lineBuilder.toString();
         throw new IllegalStateException("Reader not done!");
     }
 
+    /**
+     * Resets the reader to its initial state.<br>
+     * Note that the message will not be accessible with {@link #get()} until {@link #process(ByteBuffer)}
+     * have returned {@link ProcessStatus#DONE} once again.
+     */
     @Override
     public void reset() {
         lineBuilder.setLength(0);
