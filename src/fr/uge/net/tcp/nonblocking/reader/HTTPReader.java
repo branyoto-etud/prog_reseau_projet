@@ -12,6 +12,7 @@ import static java.util.Objects.requireNonNull;
 
 public class HTTPReader implements Reader<HTTPPacket> {
     private final HTTPLineReader reader = new HTTPLineReader();
+    private int total_size = 0;
     private String contentType = OTHER_CONTENT;
     private boolean contentReading = false;
     private ProcessStatus status = REFILL;
@@ -70,6 +71,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
     }
 
     private ProcessStatus readType(ByteBuffer bb) {
+        System.out.println("Read Type : " + bb);
         var status = reader.process(bb);
         if (status != DONE) return status;
         var msg = reader.get();
@@ -86,6 +88,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
         return DONE;
     }
     private ProcessStatus readHeader(ByteBuffer bb) {
+        System.out.println("Read Header : " + bb);
         ProcessStatus status;
         while ((status = reader.process(bb)) == DONE) {
             var line = reader.get();
@@ -94,24 +97,31 @@ public class HTTPReader implements Reader<HTTPPacket> {
                 contentReading = true;
                 break;
             }
-            if (line.startsWith("Content-Type:"))
+            if (line.startsWith("Content-Type:")) {
                 contentType = line.substring(13).trim();
-            else if (line.startsWith("Resource:"))
+                System.out.println("content type : " + contentType);
+            } else if (line.startsWith("Resource:")) {
                 resource = line.substring(9).trim();
-            else if (line.startsWith("Content-Length:")) {
+                System.out.println("resource : " + resource);
+            } else if (line.startsWith("Content-Length:")) {
                 var size = parseInt(line.substring(15).trim());
                 if (size < 0 || size > BUFFER_MAX_SIZE) return ERROR;
                 buff = ByteBuffer.allocate(size);
+                total_size += size;
+                System.out.println("Size : " + size);
             }
         }
         return status;
     }
     private ProcessStatus readContent(ByteBuffer bb) {
+        System.out.println("Read Content : " + bb);
         if (buff == null) return ERROR;
         moveData(bb.flip(), buff);
         bb.compact();
+        System.out.println(buff);
         if (buff.hasRemaining()) return REFILL;
         packet = createGoodResponse(contentType, buff, resource);
+        System.out.println("Total : " + total_size);
         return DONE;
     }
     @Override

@@ -268,18 +268,21 @@ public class ServerChatOS {
             }
             @Override
             public void doWrite() throws IOException {
-                if (DEBUG_METHOD) System.out.println("---WRITE---");
-                if (DEBUG_BUFFER) System.out.println("bbOut = " + bbOut);
+                System.out.println("---WRITE---");
+                System.out.println("bbOut = " + bbOut);
                 sc.write(bbOut.flip());
                 bbOut.compact();
                 updateInterestOps();
             }
             @Override
             public void doRead() throws IOException {
-                if (DEBUG_METHOD) System.out.println("---READ---");
+                System.out.println("---READ---");
                 if (sc.read(bbIn) == -1) close();
-                else                     processIn();
-                if (DEBUG_BUFFER) System.out.println("bbIn = " + bbIn);
+                else                     {
+                    System.out.println("bbIn = " + bbIn);
+                    processIn();
+                    System.out.println("bbIn = " + bbIn);
+                }
             }
             @Override public void doConnect() {}
             public void close() {

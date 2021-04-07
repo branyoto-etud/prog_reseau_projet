@@ -49,7 +49,9 @@ class PrivateConnectionContext implements Context {
         queue.add(makeTokenPacket(token, other).toBuffer().flip());
     }
     private void processIn() {
+        System.out.println(bbIn);
         var status = reader.process(bbIn);
+        System.out.println(status);
         if (status != DONE) return;
         var packet = reader.get();
         reader.reset();
@@ -62,14 +64,19 @@ class PrivateConnectionContext implements Context {
                 }
                 var contentType = resource.endsWith(".txt") ? TEXT_CONTENT : OTHER_CONTENT;
                 var packets = resourceToPackets(resource, contentType);
+                packets.forEach(System.out::println);
                 packets.forEach(p -> queueMessage(p.toBuffer()));
             }
             case GOOD_RESPONSE -> {
                 if (TEXT_CONTENT.equals(packet.contentType())) {
+                    System.out.println("txt : " + packet);
                     writeAsText(packet.content());
                 } else {
+                    System.out.println("other : " + packet);
                     writeAsData(packet.content(), packet.resource());
                 }
+                System.out.println(bbIn);
+                System.out.println("---------------------");
             }
             case BAD_RESPONSE -> System.out.println("Bad request : " + packet.resource());
         }
@@ -78,6 +85,7 @@ class PrivateConnectionContext implements Context {
         queueMessage(HTTPPacket.createRequest(msg).toBuffer());
     }
     public void queueMessage(ByteBuffer buff) {
+        System.out.println(buff);
         queue.add(buff);
         processOut();
         updateInterestOps();
@@ -106,8 +114,10 @@ class PrivateConnectionContext implements Context {
     }
     @Override
     public void doWrite() throws IOException {
+        System.out.println("bbOut = " + bbOut);
         sc.write(bbOut.flip());
         bbOut.compact();
+        System.out.println("bbOut = " + bbOut);
         processOut();
         updateInterestOps();
     }

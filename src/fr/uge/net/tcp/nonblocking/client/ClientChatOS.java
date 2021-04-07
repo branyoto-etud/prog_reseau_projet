@@ -18,7 +18,6 @@ import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static java.lang.Integer.parseInt;
-import static java.nio.channels.SelectionKey.*;
 import static java.util.Objects.requireNonNull;
 
 public class ClientChatOS {
@@ -29,9 +28,7 @@ public class ClientChatOS {
         private final LinkedList<ByteBuffer> queue = new LinkedList<>();        // Stored buffer are in read-mode
         private final SelectionKey key;
         private final SocketChannel sc;
-        private String waiting = null;      // Todo : Rename when better name found (represents a client
-                                            //  trying to make a private connection that we need to answers
-                                            //  by blocking all messages until we read 'y' or 'n')
+        private String requester = null;
         private boolean connected;
         private boolean closed;
         private String pseudo;
@@ -56,7 +53,7 @@ public class ClientChatOS {
                 case GMSG, DMSG -> {}               // Only need to be displayed (already done)
                 case CP -> {
                     // If there is no pending connection, this is the client B
-                    if (!pendingConnection.containsKey(packet.pseudo())) waiting = packet.pseudo();
+                    if (!pendingConnection.containsKey(packet.pseudo())) requester = packet.pseudo();
                     // Otherwise wait for a TOKEN packet
                 }
                 case TOKEN -> {
@@ -81,7 +78,7 @@ public class ClientChatOS {
             }
         }
         public void queueMessage(String msg) {
-            if (waiting != null) {
+            if (requester != null) {
                 whileWaiting(msg);
             } else {
                 queue.add(parseInput(msg).toBuffer().flip());
@@ -91,11 +88,11 @@ public class ClientChatOS {
         }
         private void whileWaiting(String msg) {
             if (msg.toLowerCase().startsWith("y")) {
-                queue.add(makePrivateConnectionPacket(waiting).toBuffer().flip());
-                waiting = null;
+                queue.add(makePrivateConnectionPacket(requester).toBuffer().flip());
+                requester = null;
             } else if (msg.toLowerCase().startsWith("n")) {
-                queue.add(makeRejectedPacket(waiting).toBuffer().flip());
-                waiting = null;
+                queue.add(makeRejectedPacket(requester).toBuffer().flip());
+                requester = null;
             }
         }
         private Packet parseInput(String msg) {
