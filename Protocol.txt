@@ -239,7 +239,6 @@ Codes d'erreur
         3 | Erreur de code. (WRONG_CODE)
         4 | Longueur invalide. (INVALID_LENGTH)
         5 | Récupération d'erreur. (ERROR_RECOVER)
-        6 | Erreur générique. (OTHER)
 
 Considérations de sécurité
 

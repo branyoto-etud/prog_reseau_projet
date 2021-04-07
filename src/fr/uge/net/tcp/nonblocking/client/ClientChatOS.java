@@ -75,7 +75,7 @@ public class ClientChatOS {
                 case AUTH_ERROR, DEST_ERROR -> {}
                 case REJECTED -> pendingConnection.remove(packet.pseudo());
                 case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
-                case WRONG_CODE, INVALID_LENGTH, OTHER -> {
+                case WRONG_CODE, INVALID_LENGTH -> {
                     queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer().flip());
                     processOut();
                     updateInterestOps();

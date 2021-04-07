@@ -26,7 +26,7 @@ public record ServerMessageDisplay(String pseudo) {
         switch (p.type()) {
             case ERR -> {
                 switch (p.code()) {
-                    case AUTH_ERROR, DEST_ERROR, OTHER -> onBadError(p.code());
+                    case AUTH_ERROR, DEST_ERROR -> onBadError(p.code());
                     case WRONG_CODE, INVALID_LENGTH -> onServerInternalError();
                     case ERROR_RECOVER -> onBadRecoverError();
                     case REJECTED -> onRejectError(p.pseudo());

@@ -52,7 +52,6 @@ public class ClientMessageDisplay {
             case WRONG_CODE -> System.out.println("Error : The server received a packet with an invalid code!");
             case INVALID_LENGTH -> System.out.println("Error : The server received a packet with an invalid length!");
             case ERROR_RECOVER -> System.out.println("Recover on previous error!");
-            case OTHER -> System.out.println("Unknown Error! Should not happen!");
         }
         System.out.print(ANSI_RESET);
     }

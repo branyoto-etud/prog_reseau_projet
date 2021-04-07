@@ -95,7 +95,8 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     /**
      * Possible error codes.
      */
-    public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER, OTHER}
+    public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER}
+
     /**
      * Check if {@code length} is not bigger than {@link Config#TEXT_SIZE}.
      * @param length the length to check.
