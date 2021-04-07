@@ -75,9 +75,8 @@ public class StringReader implements Reader<String> {
         if (state == ProcessStatus.DONE || state == ProcessStatus.ERROR) {
             throw new IllegalStateException();
         }
-        bb.flip();                                      // Read-mode
-        state = subProcess(bb);                         // aux method that have the correct argument
-        bb.compact();                                   // Write-mode
+        state = subProcess(bb.flip());
+        bb.compact();
         return state;
     }
 
