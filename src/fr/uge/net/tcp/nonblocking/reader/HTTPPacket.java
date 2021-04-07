@@ -12,10 +12,11 @@ import static java.util.Objects.requireNonNull;
  *  <li> {@link HTTPPacketType#REQUEST} -> in this case every fields are null except {@link #resource} who is the request.
  *  <li> {@link HTTPPacketType#BAD_RESPONSE} -> in this case every fields are null.
  *  <li> {@link HTTPPacketType#GOOD_RESPONSE} -> in this case {@link #contentType} contains the type of the content and
- *  {@link #content} contains the content of the HTTP response (the buffer is in read-mode).
- *  The {@link #resource} can be null if not wanted.
+ *  {@link #content} contains the content of the HTTP response (the buffer is in read-mode) and {@link #resource} contains
+ *  the name of the received resource. None of the fields can be null.
  */
 public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer content, String resource) {
+    // TODO : add the resource for BAD_RESPONSE
     public static final String OTHER_CONTENT = "application/octet-stream";
     public static final String TEXT_CONTENT = "text/plain";
     public HTTPPacket {
@@ -24,10 +25,15 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
             case REQUEST -> requireNonNull(resource);
             case GOOD_RESPONSE -> {
                 requireNonNull(contentType);
+                requireNonNull(resource);
                 requireNonNull(content);
             }
         }
     }
+
+    /**
+     * Type of the HTTPPacket.
+     */
     public enum HTTPPacketType {REQUEST, GOOD_RESPONSE, BAD_RESPONSE}
 
 
@@ -35,15 +41,26 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     //                 FACTORY METHODS
     // ------------------------------------------------
 
+    /**
+     * @return a new {@link HTTPPacket} representing a bad response.
+     */
     public static HTTPPacket createBadResponse() {
         return new HTTPPacket(BAD_RESPONSE, null, null, null);
     }
+
+    /**
+     * @param type type of the content of this HTTP Response. Cannot be null.
+     * @param content content of the HTTP Response. Cannot be null and must be in read-mode.
+     * @param resource the name of the resource. Cannot be null.
+     * @return a new {@link HTTPPacket} representing a good response with a named resource.
+     */
     public static HTTPPacket createGoodResponse(String type, ByteBuffer content, String resource) {
         return new HTTPPacket(GOOD_RESPONSE, type, content, resource);
     }
-    public static HTTPPacket createGoodResponse(String type, ByteBuffer content) {
-        return new HTTPPacket(GOOD_RESPONSE, type, content, null);
-    }
+    /**
+     * @param resource the name of the resource. Cannot be null.
+     * @return a new {@link HTTPPacket} representing a request of a resource.
+     */
     public static HTTPPacket createRequest(String resource) {
         return new HTTPPacket(REQUEST, null, null, resource);
     }
@@ -53,7 +70,7 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     // ------------------------------------------------
 
     /**
-     * @return this object as a buffer in read-mode.
+     * @return a representation of this object as a buffer in read-mode.
      */
     public ByteBuffer toBuffer()  {
         return switch (type) {
@@ -62,12 +79,22 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
             case BAD_RESPONSE -> fromBadResponse();
         };
     }
+
+    /**
+     * @return a representation of this object as a buffer in read-mode. If the type is {@link HTTPPacketType#REQUEST}.
+     */
     private ByteBuffer fromRequest() {
         return US_ASCII.encode("GET " + resource + "\r\n");
     }
+    /**
+     * @return a representation of this object as a buffer in read-mode. If the type is {@link HTTPPacketType#BAD_RESPONSE}.
+     */
     private ByteBuffer fromBadResponse() {
         return US_ASCII.encode("HTTP/1.1 404 NOT FOUND\r\n");
     }
+    /**
+     * @return a representation of this object as a buffer in read-mode. If the type is {@link HTTPPacketType#GOOD_RESPONSE}.
+     */
     private ByteBuffer fromGoodResponse() {
         var header = US_ASCII.encode(
                 "HTTP/1.1 200 OK\r\n"+
