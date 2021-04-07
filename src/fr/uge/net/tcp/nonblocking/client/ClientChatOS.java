@@ -230,6 +230,12 @@ public class ClientChatOS {
     private final String directory;
     private final Thread console;
 
+    /**
+     * Create a client with a socket and a selector.
+     * @param serverAddress the address of the server. Cannot be null.
+     * @param directory the working directory. Cannot be null.
+     * @throws IOException if an I/O error occurs.
+     */
     public ClientChatOS(InetSocketAddress serverAddress, String directory) throws IOException {
         this.serverAddress = requireNonNull(serverAddress);
         this.directory = requireNonNull(directory);
@@ -297,10 +303,16 @@ public class ClientChatOS {
         privateConnections.put(packet.pseudo(), context);
         return context;
     }
+
+    /**
+     * Actually starts the client by registering the socket into
+     * the selector and connect it to the server. And start the console thread.
+     *
+     * @throws IOException if an I/O error occurs.
+     */
     public void launch() throws IOException {
         var key = sc.register(selector, SelectionKey.OP_CONNECT);
-        mainContext = new MainContext(key);
-        key.attach(mainContext);
+        key.attach(mainContext = new MainContext(key));
 
         sc.connect(serverAddress);
         console.start();
@@ -312,21 +324,24 @@ public class ClientChatOS {
             } catch (UncheckedIOException tunneled) {
                 console.interrupt();
                 silentlyClose(key.channel());
-                System.exit(-1);
+                System.exit(-1); // Todo : remove when using BufferedReader
             }
         }
     }
+
+    /**
+     * Do the available action (whether Connect, Write or Read) on the key.
+     * If a key is closed (other than the main one) display a message and close it properly.
+     *
+     * @param key the current key to treat.
+     * @throws UncheckedIOException if the main channel is closed.
+     */
     private void treatKey(SelectionKey key) {
+        var ctx = (Context) key.attachment();
         try {
-            if (key.isValid() && key.isConnectable()) {
-                ((Context) key.attachment()).doConnect();
-            }
-            if (key.isValid() && key.isWritable()) {
-                ((Context) key.attachment()).doWrite();
-            }
-            if (key.isValid() && key.isReadable()) {
-                ((Context) key.attachment()).doRead();
-            }
+            if (key.isValid() && key.isConnectable()) ctx.doConnect();
+            if (key.isValid() && key.isWritable()) ctx.doWrite();
+            if (key.isValid() && key.isReadable()) ctx.doRead();
         } catch(IOException ioe) {
             throw new UncheckedIOException(ioe);
         }
@@ -335,7 +350,6 @@ public class ClientChatOS {
     // --------------------------------------------------
     // Static Methods
     // --------------------------------------------------
-
 
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length!=3) usage();
