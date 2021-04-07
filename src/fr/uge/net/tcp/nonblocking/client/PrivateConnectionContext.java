@@ -1,5 +1,6 @@
 package fr.uge.net.tcp.nonblocking.client;
 
+import fr.uge.net.tcp.nonblocking.Packet;
 import fr.uge.net.tcp.nonblocking.reader.HTTPPacket;
 import fr.uge.net.tcp.nonblocking.reader.HTTPReader;
 
@@ -23,6 +24,7 @@ import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeTokenPacket;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
 import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
+import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
 class PrivateConnectionContext implements Context {
@@ -33,21 +35,14 @@ class PrivateConnectionContext implements Context {
     private final String directory;
     private final SocketChannel sc;
     private final SelectionKey key;
-    private final String other;
     private boolean connected;
     private boolean closed;
 
-    public PrivateConnectionContext(String other, String directory, SelectionKey key) {
-        this.other = requireNonNull(other);
+    public PrivateConnectionContext(Packet packet, String directory, SelectionKey key) {
         sc = (SocketChannel) key.channel();
         this.key = requireNonNull(key);
         this.directory = directory;
-    }
-    /**
-     * Initiate the connection to the server.
-     */
-    public void launch(int token) {
-        queue.add(makeTokenPacket(token, other).toBuffer());
+        queue.add(makeTokenPacket(parseInt(packet.message()), packet.pseudo()).toBuffer());
     }
     private void processIn() {
         var status = reader.process(bbIn);

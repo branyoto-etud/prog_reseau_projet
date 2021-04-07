@@ -62,8 +62,7 @@ public class ClientChatOS {
                     // Otherwise wait for a TOKEN packet
                 }
                 case TOKEN -> {
-                    var ctx = createPrivateConnection(packet.pseudo());
-                    ctx.launch(parseInt(packet.message()));
+                    var ctx = createPrivateConnection(packet);
                     if (pendingConnection.containsKey(packet.pseudo())) {
                         ctx.queueMessage(pendingConnection.remove(packet.pseudo()));
                     }
@@ -226,18 +225,18 @@ public class ClientChatOS {
     /**
      * Creates a new socket to register to the server as a private connection.
      *
-     * @param pseudo the pseudo of the client.
+     * @param packet the packet containing the token.
      * @return the new context.
      * @throws IOException if the socket cannot be created nor registered to the {@link #selector}.
      */
-    private PrivateConnectionContext createPrivateConnection(String pseudo) throws IOException {
+    private PrivateConnectionContext createPrivateConnection(Packet packet) throws IOException {
         var pc = SocketChannel.open();
         pc.configureBlocking(false);
         var key = pc.register(selector, SelectionKey.OP_CONNECT);
-        var context = new PrivateConnectionContext(pseudo, directory, key);
+        var context = new PrivateConnectionContext(packet, directory, key);
         key.attach(context);
         pc.connect(serverAddress);
-        privateConnections.put(pseudo, context);
+        privateConnections.put(packet.pseudo(), context);
         return context;
     }
     public void launch() throws IOException {
