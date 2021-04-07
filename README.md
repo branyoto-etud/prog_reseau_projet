@@ -14,8 +14,6 @@ Same with @
 
 - Client : Only tries to authenticate once at the time
         -> Wait for AUTH packet or AUTH_ERROR packet to send another AUTH packet
-- Client : Correct connection of privateConnection socket
-- Client : Check if 2 CP w/ same client is correct
 - Client : fuse PCCtx::launch and constructor
 - Client : Invalid token
 - Client : Too much client w/ the same token (more than two)
