@@ -119,7 +119,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
     public HTTPPacket get() {
         if (status != DONE) throw new IllegalStateException("Not DONE!");
         if (packet.type() != GOOD_RESPONSE) return packet;
-        return createGoodResponse(contentType, copyBuffer(buff).flip(), resource);
+        return createGoodResponse(contentType, copyBuffer(buff), resource);
     }
     @Override
     public void reset() {

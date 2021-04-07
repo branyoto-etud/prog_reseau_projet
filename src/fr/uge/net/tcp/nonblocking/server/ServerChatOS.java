@@ -253,7 +253,7 @@ public class ServerChatOS {
                 bbIn.clear();
             }
             private void queueMessage(ByteBuffer other) {
-                queue.add(copyBuffer(other).flip());
+                queue.add(copyBuffer(other));
                 processOut();
                 updateInterestOps();
             }

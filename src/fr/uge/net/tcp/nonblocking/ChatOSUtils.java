@@ -10,14 +10,14 @@ public class ChatOSUtils {
     /**
      * Copy every data between 0 and {@code buff.limit()} inside a new buffer.
      * @param buff the buffer to copy. Will be the same before and after the call of this method.
-     * @return the new buffer in write-mode. The size of this buffer is {@code buff.limit()}.
+     * @return the new buffer in read-mode. The size of this buffer is {@code buff.limit()}.
      */
     public static ByteBuffer copyBuffer(ByteBuffer buff) {
         var bb = ByteBuffer.allocate(buff.limit());
         for (var i = 0; i < buff.limit(); i++) {
             bb.put(buff.get(i));
         }
-        return bb;
+        return bb.flip();
     }
     /**
      * Move data from {@code src} to {@code dest}.
