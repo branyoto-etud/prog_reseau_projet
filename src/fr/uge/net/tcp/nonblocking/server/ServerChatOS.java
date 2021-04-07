@@ -490,6 +490,8 @@ public class ServerChatOS {
                 silentlyClose(key.channel(), cliCtx.pseudo);
             else if (ctx instanceof PrivateConnection.PrivateConnectionContext pcCtx)
                 pcCtx.close();
+            else if (ctx instanceof ConnectionContext conCtx)
+                ChatOSUtils.silentlyClose(conCtx.sc);
         }
     }
 
