@@ -16,6 +16,7 @@ import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onMessageReceived;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
@@ -220,6 +221,12 @@ public class ClientChatOS {
             }
             return true;
         }
+
+        @Override
+        public void doConnect() throws IOException {
+            super.doConnect();
+            if (isConnected()) onConnectSuccess();
+        }
     }
     private static final Logger logger = Logger.getLogger(ClientChatOS.class.getName());
 
@@ -327,7 +334,7 @@ public class ClientChatOS {
             } catch (UncheckedIOException tunneled) {
                 console.interrupt();
                 silentlyClose(key.channel());
-                privateConnections.forEach((k, v) -> v.close(privateConnections));
+                privateConnections.forEach((k, v) -> v.close());
                 System.exit(-1); // Todo : remove when using BufferedReader
             }
         }

@@ -1,12 +1,9 @@
 package fr.uge.net.tcp.nonblocking.client;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.AbstractList;
 import java.util.LinkedList;
 import java.util.Objects;
 
@@ -28,14 +25,15 @@ public abstract class AbstractContext implements Context {
     /**
      * The stored buffers are in read-mode.
      */
-    final LinkedList<ByteBuffer> queue = new LinkedList<>();
+    protected final LinkedList<ByteBuffer> queue = new LinkedList<>();
     /**
      * Input buffer is in write-mode.
      */
-    final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
+    protected final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
+    protected final SelectionKey key;
     private final SocketChannel sc;
-    private final SelectionKey key;
     private boolean closed = false;
+    private boolean connected = false;
 
     /**
      * @param key the connection key.
@@ -82,7 +80,7 @@ public abstract class AbstractContext implements Context {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
-        if (op == 0)                        silentlyClose(sc);
+        if (op == 0)                        close();
         else                                key.interestOps(op);
         return op;
     }
@@ -119,11 +117,20 @@ public abstract class AbstractContext implements Context {
     public void doConnect() throws IOException {
         try {
             if (!sc.finishConnect()) return;
-            onConnectSuccess();
-            key.interestOps(SelectionKey.OP_READ);
+            connected = true;
+            processOut();
+            updateInterestOps();
         } catch (IOException ioe) {
             onConnectFail();
             throw ioe;
         }
+    }
+    public boolean isConnected() {
+        return connected;
+    }
+
+    public void close() {
+        silentlyClose(sc);
+        connected = false;
     }
 }
