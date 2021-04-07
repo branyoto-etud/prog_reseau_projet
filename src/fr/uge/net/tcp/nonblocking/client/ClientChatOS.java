@@ -343,7 +343,11 @@ public class ClientChatOS {
             if (key.isValid() && key.isWritable()) ctx.doWrite();
             if (key.isValid() && key.isReadable()) ctx.doRead();
         } catch(IOException ioe) {
-            throw new UncheckedIOException(ioe);
+            if (!(ctx instanceof PrivateConnectionContext privateCtx)) {
+                throw new UncheckedIOException(ioe);
+            }
+            logger.info("Private connection stopped!");
+            privateCtx.close();
         }
     }
 

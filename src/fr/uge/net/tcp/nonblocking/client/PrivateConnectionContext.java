@@ -157,4 +157,7 @@ class PrivateConnectionContext implements Context {
     private Path resourceToPath(String resource) {
         return Paths.get(resource.startsWith("/") ? directory + resource : directory + "/" + resource);
     }
+    public void close() {
+        silentlyClose(sc);
+    }
 }
