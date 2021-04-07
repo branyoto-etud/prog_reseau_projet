@@ -11,6 +11,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -122,13 +123,11 @@ class PrivateConnectionContext implements Context {
     }
 
     private boolean fileExists(String resource) {
-        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
-        return Files.exists(Paths.get(path));
+        return Files.exists(resourceToPath(resource));
     }
     private List<HTTPPacket> resourceToPackets(String resource, String contentType) {
         var buffers = new ArrayList<HTTPPacket>();
-        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
-        try (var fc = FileChannel.open(Paths.get(path), StandardOpenOption.READ)) {
+        try (var fc = FileChannel.open(resourceToPath(resource), StandardOpenOption.READ)) {
             var buff = ByteBuffer.allocate(CONTENT_MAX_SIZE);
             while (fc.read(buff) != -1) {
                 if (!buff.hasRemaining()) {
@@ -147,13 +146,15 @@ class PrivateConnectionContext implements Context {
         System.out.println(StandardCharsets.US_ASCII.decode(content).toString());
     }
     private void writeAsData(ByteBuffer content, String resource) {
-        var path = resource.startsWith("/") ? directory + resource : directory + "/" + resource;
-        try (var fc = FileChannel.open(Paths.get(path), StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+        try (var fc = FileChannel.open(resourceToPath(resource), StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
             while (content.hasRemaining()) {
                 fc.write(content);
             }
         } catch (IOException ioe) {
             System.err.println("Cannot open the file " + resource + " in write mode.");
         }
+    }
+    private Path resourceToPath(String resource) {
+        return Paths.get(resource.startsWith("/") ? directory + resource : directory + "/" + resource);
     }
 }
