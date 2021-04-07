@@ -8,8 +8,8 @@ import static java.util.Objects.requireNonNull;
 
 public class ChatOSUtils {
     /**
-     * Copy every data between 0 and {@code buff.limit()} inside a new buffer.
-     * @param buff the buffer to copy. Will be the same before and after the call of this method.
+     * Copies every data between 0 and {@code buff.limit()} inside a new buffer.
+     * @param buff the buffer to copy. Won't be modified during the call of this method.
      * @return the new buffer in read-mode. The size of this buffer is {@code buff.limit()}.
      */
     public static ByteBuffer copyBuffer(ByteBuffer buff) {
@@ -20,7 +20,7 @@ public class ChatOSUtils {
         return bb.flip();
     }
     /**
-     * Move data from {@code src} to {@code dest}.
+     * Moves data from {@code src} to {@code dest}.
      * The quantity of data taken from {@code src} depends on the remaining of each buffer.
      *
      * @param src the input buffer. Must be in read-mode. Cannot be null.
@@ -43,7 +43,7 @@ public class ChatOSUtils {
         return dest.hasRemaining();
     }
     /**
-     * Tries to close the channel if not already closed.
+     * Closes the channel if not already closed.
      * @param channel the channel to close.
      */
     public static void silentlyClose(Channel channel) {
