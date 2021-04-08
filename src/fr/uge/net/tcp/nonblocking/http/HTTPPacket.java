@@ -9,8 +9,8 @@ import static java.util.Objects.requireNonNull;
 /**
  * {@link #type} : type (not null) of the packet that can be either:
  * <ul>
- *  <li> {@link HTTPPacketType#REQUEST} -> in this case every fields are null except {@link #resource} who is the request.
- *  <li> {@link HTTPPacketType#BAD_RESPONSE} -> in this case every fields are null.
+ *  <li> {@link HTTPPacketType#REQUEST} -> in this case every fields are null except {@link #resource} which is the request.
+ *  <li> {@link HTTPPacketType#BAD_RESPONSE} -> in this case every fields are null except {@link #resource} that can be not null.
  *  <li> {@link HTTPPacketType#GOOD_RESPONSE} -> in this case {@link #contentType} contains the type of the content and
  *  {@link #content} contains the content of the HTTP response (the buffer is in read-mode) and {@link #resource} contains
  *  the name of the received resource. None of the fields can be null.
@@ -44,8 +44,8 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     /**
      * @return a new {@link HTTPPacket} representing a bad response.
      */
-    public static HTTPPacket createBadResponse() {
-        return new HTTPPacket(BAD_RESPONSE, null, null, null);
+    public static HTTPPacket createBadResponse(String resource) {
+        return new HTTPPacket(BAD_RESPONSE, null, null, resource);
     }
 
     /**
@@ -90,7 +90,10 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
      * @return a representation of this object as a buffer in read-mode. If the type is {@link HTTPPacketType#BAD_RESPONSE}.
      */
     private ByteBuffer fromBadResponse() {
-        return US_ASCII.encode("HTTP/1.1 404 NOT FOUND\r\n");
+        return US_ASCII.encode(
+                "HTTP/1.1 404 NOT FOUND\r\n" +
+                "Resource: " + resource + "\r\n" +
+                "\r\n");
     }
     /**
      * @return a representation of this object as a buffer in read-mode. If the type is {@link HTTPPacketType#GOOD_RESPONSE}.
@@ -100,7 +103,7 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
                 "HTTP/1.1 200 OK\r\n"+
                 "Content-Length: " + content.limit() + "\r\n" +
                 "Content-Type: " + contentType + "\r\n" +
-                (resource == null ? "" : "Resource: " + resource + "\r\n") +
+                "Resource: " + resource + "\r\n" +
                 "\r\n");
         return ByteBuffer.allocate(header.capacity() + content.limit())
                 .put(header)

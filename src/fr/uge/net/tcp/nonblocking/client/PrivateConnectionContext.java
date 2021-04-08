@@ -75,7 +75,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
      */
     private void onRequest(String resource) {
         if (!fileExists(resource)) {
-            queueMessage(createBadResponse().toBuffer());
+            queueMessage(createBadResponse(resource).toBuffer());
         } else {
             var packets = resourceToPackets(resource, resource.endsWith(".txt") ? TEXT_CONTENT : OTHER_CONTENT);
             packets.forEach(p -> queueMessage(p.toBuffer()));
@@ -141,7 +141,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
             fillWithFile(packets, fc, resource, contentType);
             return packets;
         } catch (IOException e) {
-            return List.of(createBadResponse());
+            return List.of(createBadResponse(resource));
         }
     }
 

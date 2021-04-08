@@ -4,21 +4,19 @@ import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.copyBuffer;
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
-import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.HTTPPacketType.GOOD_RESPONSE;
 import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.*;
+import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.HTTPPacketType.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.*;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
 public class HTTPReader implements Reader<HTTPPacket> {
     private final HTTPLineReader reader = new HTTPLineReader();
     private String contentType = OTHER_CONTENT;
+    private HTTPPacketType packetType = null;
     private boolean contentReading = false;
     private ProcessStatus status = REFILL;
-    private boolean typeFound = false;
     private HTTPPacket packet = null;
     private ByteBuffer buff = null;
     private String resource = null;
@@ -60,13 +58,17 @@ public class HTTPReader implements Reader<HTTPPacket> {
         return status;
     }
     private ProcessStatus subProcess(ByteBuffer bb) {
-        if (!typeFound) {
+        if (packetType == null) {
             var status = readFirstLine(bb);
             if (status != REFILL) return status;
         }
         if (!contentReading) {
             var status = readHeader(bb);
             if (status != DONE) return status;
+        }
+        if (packetType == BAD_RESPONSE) {
+            packet = createBadResponse(resource);
+            return DONE;
         }
         return readContent(bb);
     }
@@ -84,7 +86,6 @@ public class HTTPReader implements Reader<HTTPPacket> {
         if (status != DONE) return status;
         status = processFirstLine(reader.get());
         reader.reset();
-        typeFound = true;
         return status;
     }
 
@@ -107,12 +108,13 @@ public class HTTPReader implements Reader<HTTPPacket> {
     private ProcessStatus processFirstLine(String line) {
         if (line.startsWith("HTTP/1.1")) {
             var words = line.split(" ", 3);
-            if (words[1].equals("200")) return REFILL;
-            packet = createBadResponse();
-            return DONE;
+            if (words[1].equals("200")) packetType = GOOD_RESPONSE;
+            else packetType = BAD_RESPONSE;
+            return REFILL;
         }
         if (line.startsWith("GET")) {
             packet = createRequest(line.substring(3).trim());
+            packetType = REQUEST;
             return DONE;
         }
         return ERROR;
@@ -213,7 +215,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
     public void reset() {
         contentType = OTHER_CONTENT;
         contentReading = false;
-        typeFound = false;
+        packetType = null;
         resource = null;
         status = REFILL;
         reader.reset();
