@@ -1,6 +1,7 @@
 package fr.uge.net.tcp.nonblocking.packet;
 
 import fr.uge.net.tcp.nonblocking.packet.Packet.PacketType;
+import fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode;
 import fr.uge.net.tcp.nonblocking.reader.Reader;
 import fr.uge.net.tcp.nonblocking.reader.StringReader;
 
@@ -45,8 +46,8 @@ public class PacketReader implements Reader<Packet> {
      *     if the message is ready to be get.</li>
      *   <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     <ul>
-     *       <li> If the type is not recognized.</li> <!--LATEST replace with the correct range-->
-     *       <li> If the type is {@link Packet.PacketType#ERR} and the code is not recognized.</li> <!--LATEST replace with the correct range-->
+     *       <li> If the type is not recognized. (i.e. not between 0 and {@link PacketType#TOKEN} (5))</li>
+     *       <li> If the type is {@link Packet.PacketType#ERR} and the code is not recognized. (i.e. not between 0 and {@link ErrorCode#ERROR_RECOVER} (5))</li>
      *       <li> If any length read is not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.</li>
      *     </ul>
      *   </li>
