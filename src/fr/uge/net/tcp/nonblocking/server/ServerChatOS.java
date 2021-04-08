@@ -111,7 +111,9 @@ public class ServerChatOS {
             if (privateConnections.containsKey(token)) {
                 privateConnections.get(token).addSelectionKey(key, bbIn);
                 deprecated = true;
-            } // Todo : add error if token invalid
+            } else {
+                logger.warning("Invalid token received : " + token);
+            }
         }
     }
     /**
