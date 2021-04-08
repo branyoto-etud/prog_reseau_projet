@@ -307,7 +307,7 @@ public class ClientChatOS {
         var pc = SocketChannel.open();
         pc.configureBlocking(false);
         var key = pc.register(selector, SelectionKey.OP_CONNECT);
-        var context = new PrivateConnectionContext(packet, directory, key, packet.pseudo());
+        var context = new PrivateConnectionContext(packet, directory, key);
         key.attach(context);
         pc.connect(serverAddress);
         privateConnections.put(packet.pseudo(), context);

@@ -10,9 +10,7 @@ import java.util.Objects;
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
-import static java.nio.channels.SelectionKey.OP_READ;
-import static java.nio.channels.SelectionKey.OP_WRITE;
+import static java.nio.channels.SelectionKey.*;
 
 /**
  * Abstract context are used to group all methods common between all implementations of {@link Context}.
@@ -30,7 +28,7 @@ public abstract class AbstractContext implements Context {
      * Input buffer is in write-mode.
      */
     protected final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-    protected final SelectionKey key;
+    private final SelectionKey key;
     private final SocketChannel sc;
     private boolean closed = false;
     private boolean connected = false;
@@ -80,12 +78,13 @@ public abstract class AbstractContext implements Context {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
+        if (!connected)                     op  = OP_CONNECT;
         if (op == 0)                        close();
         else                                key.interestOps(op);
         return op;
     }
     /**
-     * Reads data in {@link #bbOut}.
+     * Reads data in {@link #bbIn}.
      * If there's no data to read, {@link #closed} is sets to true.
      *
      * @throws IOException if an I/O error occurs.
@@ -125,10 +124,17 @@ public abstract class AbstractContext implements Context {
             throw ioe;
         }
     }
+
+    /**
+     * @return if the current socket is closed or not.
+     */
     public boolean isConnected() {
         return connected;
     }
 
+    /**
+     * Close properly the socket.
+     */
     public void close() {
         silentlyClose(sc);
         connected = false;
