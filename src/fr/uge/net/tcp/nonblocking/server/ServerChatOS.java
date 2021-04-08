@@ -2,6 +2,7 @@ package fr.uge.net.tcp.nonblocking.server;
 
 import fr.uge.net.tcp.nonblocking.ChatOSUtils;
 import fr.uge.net.tcp.nonblocking.Packet;
+import fr.uge.net.tcp.nonblocking.client.AbstractContext;
 import fr.uge.net.tcp.nonblocking.client.Context;
 import fr.uge.net.tcp.nonblocking.reader.PacketReader;
 
@@ -13,18 +14,15 @@ import java.nio.channels.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.ChatOSUtils.copyBuffer;
-import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketType.AUTH;
 import static fr.uge.net.tcp.nonblocking.Packet.PacketType.TOKEN;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.nio.channels.SelectionKey.OP_READ;
-import static java.nio.channels.SelectionKey.OP_WRITE;
 import static java.util.Objects.requireNonNull;
 
 public class ServerChatOS {
@@ -33,66 +31,43 @@ public class ServerChatOS {
      * After an authentication packet or a token packet arrived, this context will be deleted
      * and replaced by respectively {@link ConnectionContext} and {@link PrivateConnection.PrivateConnectionContext}.
      */
-    private class ConnectionContext implements Context {
-        /**
-         * The two buffer will always stay in write-mode after each methods.
-         */
-        private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final LinkedList<ByteBuffer> queue = new LinkedList<>();
+    private class ConnectionContext extends AbstractContext implements Context {
+        private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
-        /**
-         * Set to true after an error. Imply that all read bytes are not treated.
-         */
-        private boolean rejecting = false;
+        private boolean deprecated = false;
         private final SelectionKey key;
-        private final SocketChannel sc;
-        private boolean closed = false;
 
         /**
          * Creates a connection context. Used by client until authentication.
          * @param key the connection key. Cannot be null.
          */
         private ConnectionContext(SelectionKey key){
-            this.key = requireNonNull(key);
-            sc = (SocketChannel) key.channel();
+            super(key);
+            this.key = key;
         }
         /**
-         * Tries to read a packet by processing bbIn.
+         * Tries to read a packet by processing {@link #bbIn}.
          */
-        private void processIn() {
-            // Todo : read only one byte if rejecting
-            //  until read an error code
+        @Override
+        public void processIn() {
+            if (!rejectReader.process(bbIn)) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
-            if (status == ERROR && !rejecting) sendError();
+            if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
             if (status == DONE) treatPacket(reader.get());
             reader.reset();
         }
         /**
-         * Send an error packet if an error occurs while processing bbIn
-         */
-        private void sendError() {
-            switch (reader.getFailure()) {
-                case CODE -> queueMessage(makeErrorPacket(WRONG_CODE));
-                case LENGTH -> queueMessage(makeErrorPacket(INVALID_LENGTH));
-            }
-            rejecting = true;
-        }
-        /**
-         * Analyses the processed packet.
-         * If the packet is a recover : stop rejecting.
-         * If the packet is an authentication : Register as client or send error.
-         * If the packet is a token : Register as private connection.
+         * Analyses the processed packet.<br>
+         * If the packet is an authentication : Register as client or send error.<br>
+         * If the packet is a token : Register as private connection.<br>
          * Otherwise : ignore.
          *
          * @param packet the processed packet. Cannot be null.
          */
         private void treatPacket(Packet packet) {
             requireNonNull(packet);
-            if (rejecting) {
-                if (packet.code() == ERROR_RECOVER) rejecting = false;
-            } else if (packet.type() == AUTH) {
+            if (packet.type() == AUTH) {
                 onAuthentication(packet.pseudo());
             } else if (packet.type() == TOKEN) {
                 onToken(Integer.parseInt(packet.message()));
@@ -105,84 +80,52 @@ public class ServerChatOS {
          */
         private void onAuthentication(String pseudo) {
             requireNonNull(pseudo);
-            new ServerMessageDisplay("").onAuthPacket(sc, pseudo);
+            // Todo : redo display
+            new ServerMessageDisplay("").onAuthPacket((SocketChannel) key.channel(), pseudo);
+
             if (!clients.containsKey(pseudo)) {
                 clients.put(pseudo, new ClientContext(key, pseudo));
+                deprecated = true;
             } else {
-                queueMessage(makeErrorPacket(AUTH_ERROR));
+                queueMessage(makeErrorPacket(AUTH_ERROR).toBuffer());
             }
         }
+
+        @Override
+        public void updateInterestOps() {
+            System.out.println(deprecated);
+            if (!deprecated) {
+                super.updateInterestOps();
+            }
+        }
+
         /**
          * Replace this context with a {@link PrivateConnection.PrivateConnectionContext}.
          * Also link it to the correct private connection.
          * @param token the private connection's identifier.
          */
         private void onToken(int token) {
-            new ServerMessageDisplay("").onTokenPacket(sc, token);
+            // Todo : redo display
+            new ServerMessageDisplay("").onTokenPacket((SocketChannel) key.channel(), token);
             if (privateConnections.containsKey(token)) {
                 privateConnections.get(token).addSelectionKey(key, bbIn);
+                deprecated = true;
             } // Todo : add error if token invalid
         }
-        /**
-         * Adds this message to the queue and tries to fill {@link #bbOut}.
-         * @param msg the message to send.
-         */
-        private void queueMessage(Packet msg) { // Todo : Remove on refactor
-            queue.add(msg.toBuffer());
-            processOut();
-            updateInterestOps();
-        }
-
-        /**
-         * Tries to fill {@link #bbOut} if there's an element in the {@link #queue}
-         * and {@link #bbOut} doesn't have anything in it.
-         */
-        private void processOut() { // Todo : Remove on refactor
-            if (queue.isEmpty()) return;
-            if (bbOut.position() != 0) return;
-            bbOut.clear()
-                 .put(queue.remove());
-        }
-        // Todo  : Elle va dégager
-        private void updateInterestOps() { // Todo : Remove on refactor
-            var op = OP_WRITE;
-            if (!closed && bbIn.hasRemaining()) op |= OP_READ;
-            key.interestOps(op);
-        }
-        @Override
-        public void doRead() throws IOException { // Todo : Keep after refactor and redo
-            if (sc.read(bbIn) == -1) closed = true;
-            processIn();
-        }
-        @Override
-        public void doWrite() throws IOException { // Todo : Remove on refactor
-            sc.write(bbOut.flip());
-            bbOut.compact();
-            processOut();
-            updateInterestOps();
-        }
-        @Override public void doConnect() {} // Todo : Replace by empty method after refactor
     }
     /**
      * Class for all the "normal" clients (i.e. not the private connections)
      * Handle the receiving and sending of GMSG, DMSG, PC and ERROR.
      */
-    private class ClientContext implements Context {
-        private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-        private final LinkedList<ByteBuffer> queue = new LinkedList<>();
+    private class ClientContext extends AbstractContext implements Context {
+        private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
-        private boolean rejecting = false;
-        private boolean closed = false;
-        private final SelectionKey key;
-        private final SocketChannel sc;
         private final String pseudo;
         // Todo : redo display
 
         private ClientContext(SelectionKey key, String pseudo){
-            this.key = key;
+            super(key);
             this.pseudo = pseudo;
-            sc = (SocketChannel) key.channel();
             changing.put(key, this);
             queueMessage(makeAuthenticationPacket(pseudo));
         }
@@ -190,106 +133,122 @@ public class ServerChatOS {
          * Tries to read a packet by processing bbIn.
          * And do an action on packet.
          */
-        private void processIn() {
-            var status = reader.process(bbIn);      // Process Input
-            if (status == REFILL) return;           // If not full -> stop
-            if (status == ERROR) sendError();
+        @Override
+        public void processIn() {
+            if (!rejectReader.process(bbIn)) return;
+            var status = reader.process(bbIn);
+            if (status == REFILL) return;
+            if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
             if (status == DONE) treatPacket(reader.get());
             reader.reset();
-            // Todo : maybe recursive call
+            processIn();
         }
-        private void sendError() {      // Todo : refactor with the one from ConnectionContext
-            if (rejecting) return;
-            switch (reader.getFailure()) {
-            case CODE -> queue.add(makeErrorPacket(WRONG_CODE).toBuffer());     // Todo : use queueMessage
-                case LENGTH -> queue.add(makeErrorPacket(INVALID_LENGTH).toBuffer()); // Todo : use queueMessage
-            }
-            rejecting = true;
-            processOut();
-            updateInterestOps();
+        public void queueMessage(Packet packet) {
+            queueMessage(packet.toBuffer());
         }
 
-        private void treatPacket(Packet packet) { // Todo : split into many functions
-            if (rejecting) {                            // If rejecting
-                if (packet.code() == ERROR_RECOVER) {   // But the errorCode is ERROR_RECOVER
-                    rejecting = false;                  // Stops rejecting
-                }
+        /**
+         * Do an action depending on the {@code packet}'s type.
+         * @param packet the processed packet.
+         */
+        private void treatPacket(Packet packet) {
+            switch (packet.type()) {
+                case ERR -> onError(packet);
+                case GMSG -> broadcast(makeGeneralMessagePacket(packet.message(), packet.pseudo()), this);
+                case DMSG -> onDirectMessage(packet);
+                case PC -> onPrivateConnection(packet);
+            }
+        }
+
+        /**
+         * If the error code contained {@code packet} is
+         * {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}, tries to remove
+         * the pending connection between the two clients and forwards the rejection to
+         * the other client.
+         *
+         * @param packet the packet containing the error.
+         */
+        private void onError(Packet packet) {
+            if (packet.code() != REJECTED) return;
+            var token = computeToken(pseudo, packet.pseudo());
+            if (!pendingPC.contains(token)) return;
+            pendingPC.remove(token);
+            if (!clients.containsKey(packet.pseudo())) return;
+            clients.get(packet.pseudo()).queueMessage(makeRejectedPacket(pseudo));
+        }
+
+        /**
+         * Sends a direct message to {@code packet.pseudo()} if the client is connected;
+         * otherwise sends an error packet to this client.
+         *
+         * @param packet the packet containing the direct message.
+         */
+        private void onDirectMessage(Packet packet) {
+            if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
+                queueMessage(makeErrorPacket(DEST_ERROR));
+            } else {
+                clients.get(packet.pseudo()).queueMessage(makeDirectMessagePacket(packet.message(), pseudo));
+            }
+        }
+
+        /**
+         * The reception of this packet can be:<br/>
+         *  - when a client ask for a private connection with another client.<br/>
+         *  - when a client respond to a request.<br/>
+         * In any case, this method will first check if the other client is connected and not
+         * himself. (otherwise send an error packet)
+         * <br/>
+         * After this check, if the two clients are already connected, do nothing.
+         * If this is a response, validate the pending connection and send to the
+         * two clients the token used to represent the connection.
+         * If this is a request, add the token in the pending connection and wait until
+         * the other client accept or reject the connection.
+         *
+         * @param packet the packet containing the private connection.
+         */
+        private void onPrivateConnection(Packet packet) {
+            if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
+                queueMessage(makeErrorPacket(DEST_ERROR));
                 return;
             }
-            switch (packet.type()) {
-                case ERR -> {
-                    if (packet.code() == REJECTED) {
-                        var token = computeToken(pseudo, packet.pseudo());
-                        if (pendingPC.contains(token)) {  // If pending request -> accept
-                            pendingPC.remove(token);
-                            if (clients.containsKey(packet.pseudo()))
-                                clients.get(packet.pseudo()).queueMessage(makeRejectedPacket(pseudo));
-                        }
-                    }
-                }
-                case GMSG -> broadcast(makeGeneralMessagePacket(packet.message(), packet.pseudo()), this);
-                case DMSG -> {
-                    if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
-                        queueMessage(makeErrorPacket(DEST_ERROR));
-                    } else {
-                        clients.get(packet.pseudo()).queueMessage(makeDirectMessagePacket(packet.message(), pseudo));
-                    }
-                }
-                case PC -> {
-                    if (pseudo.equals(packet.pseudo()) || !clients.containsKey(packet.pseudo())) {
-                        queueMessage(makeErrorPacket(DEST_ERROR));
-                        return;
-                    }
-                    var token = computeToken(pseudo, packet.pseudo());
-                    if (privateConnections.containsKey(token)) {         // Already connected
-                        System.out.println("Already connected!");
-                    } else if (pendingPC.contains(token)) {     // Client B accept the connection
-                        pendingPC.remove(token);
-                        privateConnections.put(token, new PrivateConnection(token));
-                        queueMessage(makeTokenPacket(token, packet.pseudo()));
-                        clients.get(packet.pseudo()).queueMessage(makeTokenPacket(token, pseudo));
-                    } else {
-                        pendingPC.add(token);
-                        clients.get(packet.pseudo()).queueMessage(makePrivateConnectionPacket(pseudo));
-                    }
-                }
+            var token = computeToken(pseudo, packet.pseudo());
+            if (pendingPC.contains(token)) {
+                onPrivateConnectionAccept(token, packet.pseudo());
+            } else if (!privateConnections.containsKey(token)) {
+                onPrivateConnectionRequest(token, packet.pseudo());
+            } else {
+                System.out.println("Already connected!");
             }
         }
-        private void queueMessage(Packet msg) { // Todo : Remove on refactor
-            queue.add(msg.toBuffer());
-            processOut();
-            updateInterestOps();
+
+        /**
+         * If the packet represents a private connection request,
+         * store the request in the server and forwards the request to the
+         * {@code other} client.
+         *
+         * @param token the identifier of the connection.
+         * @param other the pseudo of the other client.
+         */
+        private void onPrivateConnectionRequest(int token, String other) {
+            pendingPC.add(token);
+            clients.get(other).queueMessage(makePrivateConnectionPacket(pseudo));
         }
-        private void processOut() { // Todo : Remove on refactor
-            if (queue.isEmpty()) return;
-            if (bbOut.position() != 0) return;
-            bbOut.clear();
-            bbOut.put(queue.remove());
+        /**
+         * If the packet represents a private connection positive response,
+         * remove the connection from the pending connection and add it into
+         * the actual established connections.
+         * Also send a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN} packet
+         * to the two client with the private connection identifier.
+         *
+         * @param token the identifier of the connection.
+         * @param other the pseudo of the other client.
+         */
+        private void onPrivateConnectionAccept(int token, String other) {
+            pendingPC.remove(token);
+            privateConnections.put(token, new PrivateConnection(token));
+            queueMessage(makeTokenPacket(token, other));
+            clients.get(other).queueMessage(makeTokenPacket(token, pseudo));
         }
-        private void updateInterestOps() { // Todo : Remove on refactor
-            var op = 0;
-            if (!closed && bbIn.hasRemaining()) op |= OP_READ;
-            if (bbOut.position() != 0)          op |= OP_WRITE;
-            if (op == 0)                        silentlyClose(sc, pseudo);
-            else                                key.interestOps(op);
-        }
-        @Override
-        public void doRead() throws IOException { // Todo : Remove on refactor
-            if (sc.read(bbIn) == -1) {
-                closed = true;
-                logger.info("Connection closed");
-            }
-            processIn();
-            updateInterestOps();
-        }
-        @Override
-        public void doWrite() throws IOException { // Todo : Remove on refactor
-            sc.write(bbOut.flip());
-            bbOut.compact();
-            processOut();
-            updateInterestOps();
-        }
-        @Override public void doConnect() {} // Todo : Replace by empty method after refactor
     }
     /**
      * Class for the private connections.
@@ -298,14 +257,8 @@ public class ServerChatOS {
      * will be sent to the other and vice-versa.
      */
     private class PrivateConnection {
-        private class PrivateConnectionContext implements Context {
-            private final ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-            private final ByteBuffer bbOut = ByteBuffer.allocate(BUFFER_MAX_SIZE);
-            private final LinkedList<ByteBuffer> queue = new LinkedList<>(); // read-mode
+        private class PrivateConnectionContext extends AbstractContext implements Context {
             private PrivateConnectionContext linked;
-            private final SocketChannel sc;
-            private final SelectionKey key;
-            private boolean closed = false;
 
             /**
              * Copy everything from remaining into {@link #bbIn}.
@@ -315,9 +268,8 @@ public class ServerChatOS {
              * @param remaining what remains in the previous context. Should be in write-mode.
              */
             private PrivateConnectionContext(SelectionKey key, ByteBuffer remaining) {
+                super(key);
                 requireNonNull(remaining);
-                this.key = requireNonNull(key);
-                sc = (SocketChannel) key.channel();
                 changing.put(key, this);
                 key.interestOps(0);
                 if (remaining.flip().hasRemaining())
@@ -328,50 +280,17 @@ public class ServerChatOS {
             /**
              * Send all data in {@link #bbIn} to the linked context.
              */
-            private void processIn() {
-                linked.queueMessage(bbIn.flip());
+            public void processIn() {
+                linked.forwardMessage(bbIn.flip());
                 bbIn.clear();
             }
-
             /**
              * Copies all data from {@code other} into the {@link #queue}.
              * @param other the source buffer.
              */
-            private void queueMessage(ByteBuffer other) {
-                queue.add(copyBuffer(other));
-                processOut();
-                updateInterestOps();
+            private void forwardMessage(ByteBuffer other) {
+                queueMessage(copyBuffer(other));
             }
-            private void processOut() {     // Todo :Remove on refactor
-                if (queue.isEmpty()) return;
-                if (bbOut.position() != 0) return;
-                bbOut.clear();
-                bbOut.put(queue.remove());
-            }
-            private void updateInterestOps() {   // Todo :Remove on refactor
-                var op = 0;
-                if (!closed && bbIn.hasRemaining()) op |= OP_READ;
-                if (bbOut.position() != 0)          op |= OP_WRITE;
-                if (op == 0)                        close();
-                else                                key.interestOps(op);
-            }
-            @Override
-            public void doRead() throws IOException {  // Todo :Remove on refactor
-                if (sc.read(bbIn) == -1) {
-                    closed = true;
-                    logger.info("Connection closed");
-                }
-                processIn();
-                updateInterestOps();
-            }
-            @Override
-            public void doWrite() throws IOException {  // Todo :Remove on refactor
-                sc.write(bbOut.flip());
-                bbOut.compact();
-                processOut();
-                updateInterestOps();
-            }
-
             /**
              * Adds link to the other private connection.
              * @param other the other private connection. Cannot be null.
@@ -379,14 +298,11 @@ public class ServerChatOS {
             private void link(PrivateConnectionContext other) {
                 this.linked = requireNonNull(other);
             }
-
-            @Override public void doConnect() {} // Todo : Keep
-
             /**
              * Close this private connection and the linked one.
              */
-            public void close() {
-                closeBoth();
+            public void closeBoth() {
+                PrivateConnection.this.closeBoth();
             }
         }
 
@@ -402,8 +318,8 @@ public class ServerChatOS {
          */
         private void closeBoth() {
             logger.info("Private connection closed");
-            ChatOSUtils.silentlyClose(contexts.get(0).sc);
-            ChatOSUtils.silentlyClose(contexts.get(1).sc);
+            contexts.get(0).close();
+            contexts.get(1).close();
             privateConnections.remove(token);
         }
 
@@ -416,7 +332,8 @@ public class ServerChatOS {
          * @throws IllegalStateException if there's already 2 registered connections and
          */
         public void addSelectionKey(SelectionKey key, ByteBuffer remaining) {
-            if (contexts.size() == 2) return;               // TODO : add error here
+            if (contexts.size() == 2)
+                throw new IllegalStateException("Too much client with the same token.");
             contexts.add(new PrivateConnectionContext(key, remaining));
             if (contexts.size() != 2) return;
             contexts.get(0).link(contexts.get(1));
@@ -458,7 +375,9 @@ public class ServerChatOS {
         while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
+                changing.forEach((k,v) -> System.out.println(k + " -- " + v + " -- " + k.attachment()));
                 changing.forEach(SelectionKey::attach);
+                changing.forEach((k,v) -> System.out.println(k + " -- " + v + " -- " + k.attachment()));
                 changing.clear();
             } catch (UncheckedIOException tunneled) {
                 throw tunneled.getCause();
@@ -489,9 +408,9 @@ public class ServerChatOS {
             if (ctx instanceof ClientContext cliCtx)
                 silentlyClose(key.channel(), cliCtx.pseudo);
             else if (ctx instanceof PrivateConnection.PrivateConnectionContext pcCtx)
-                pcCtx.close();
+                pcCtx.closeBoth();
             else if (ctx instanceof ConnectionContext conCtx)
-                ChatOSUtils.silentlyClose(conCtx.sc);
+                conCtx.close();
         }
     }
 
@@ -547,6 +466,7 @@ public class ServerChatOS {
     public static int computeToken(String c1, String c2) {
         return c1.hashCode() + c2.hashCode();
     }
+
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length != 1) {
             usage();

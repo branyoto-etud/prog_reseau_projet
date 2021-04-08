@@ -43,7 +43,7 @@ public abstract class AbstractContext implements Context {
     /**
      * Reads what's inside bbIn and do something with it.
      */
-    abstract void processIn();
+    public abstract void processIn();
     /**
      * Adds this buffer to the queue and tries to fill {@link #bbOut}.
      * @param buff the buffer in write mode to add to the {@link #queue} to send.
@@ -74,14 +74,13 @@ public abstract class AbstractContext implements Context {
      *
      * @return the value of the operator assigned to the key.
      */
-    public int updateInterestOps() {
+    public void updateInterestOps() {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
         if (!connected)                     op  = OP_CONNECT;
         if (op == 0)                        close();
         else                                key.interestOps(op);
-        return op;
     }
     /**
      * Reads data in {@link #bbIn}.

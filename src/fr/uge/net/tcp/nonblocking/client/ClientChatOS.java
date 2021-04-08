@@ -3,7 +3,9 @@ package fr.uge.net.tcp.nonblocking.client;
 import fr.uge.net.tcp.nonblocking.Packet;
 import fr.uge.net.tcp.nonblocking.reader.PacketReader;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
@@ -236,9 +238,9 @@ public class ClientChatOS {
     private final InetSocketAddress serverAddress;
     private final Selector selector;
     private MainContext mainContext;
+    private BufferedReader console;
     private final SocketChannel sc;
     private final String directory;
-    private final Thread console;
 
     /**
      * Create a client with a socket and a selector.
@@ -249,7 +251,6 @@ public class ClientChatOS {
     public ClientChatOS(InetSocketAddress serverAddress, String directory) throws IOException {
         this.serverAddress = requireNonNull(serverAddress);
         this.directory = requireNonNull(directory);
-        console = new Thread(this::consoleRun);
         selector = Selector.open();
         sc = SocketChannel.open();
         sc.configureBlocking(false);
@@ -260,12 +261,14 @@ public class ClientChatOS {
      * Read a line and send it to {@link #mainContext}.
      */
     private void consoleRun() {
-        try (var scan = new Scanner(System.in)){    // Todo : Possible use of BufferedReader to avoid System.exit();
-            while (scan.hasNextLine()) {
-                sendLine(scan.nextLine());
+        try {
+            console = new BufferedReader(new InputStreamReader(System.in));
+            String line;
+            while ((line = console.readLine()) != null) {
+                sendLine(line);
             }
         } catch (IOException e) {
-            logger.severe("Cannot create a socket for a private connection!");
+            logger.severe("An I/O error occurs!");
         } finally {
             logger.info("Console thread stopping!");
         }
@@ -325,17 +328,17 @@ public class ClientChatOS {
         key.attach(mainContext = new MainContext(key));
 
         sc.connect(serverAddress);
-        console.start();
+        new Thread(this::consoleRun).start();
 
         while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
                 processLine();
             } catch (UncheckedIOException tunneled) {
-                console.interrupt();
+                console.close();
                 silentlyClose(key.channel());
                 privateConnections.forEach((k, v) -> v.close());
-                System.exit(-1); // Todo : remove when using BufferedReader
+                System.exit(-1);
             }
         }
     }
