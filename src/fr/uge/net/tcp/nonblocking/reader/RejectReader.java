@@ -24,6 +24,7 @@ public class RejectReader {
      * is found. If the sequence is found in the {@code buff}, returns false; true otherwise.
      *
      * @param buff the input data. Must be in write-mode.
+     * @param pseudo the pseudo of the client. Cannot be null.
      * @return true if the reader is still rejecting; false if the reader is not
      * rejecting or if the sequence is found.
      */
@@ -58,6 +59,7 @@ public class RejectReader {
      *
      * @param failure the failure from the other reader. Cannot be null.
      * @param context the context in which we send the error packet. Cannot be null.
+     * @param pseudo the pseudo of the client. Cannot be null.
      */
     public void reject(ProcessFailure failure, AbstractContext context, String pseudo) {
         this.rejecting = true;

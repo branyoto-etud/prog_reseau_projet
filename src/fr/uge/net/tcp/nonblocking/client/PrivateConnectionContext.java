@@ -65,7 +65,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
         switch (packet.type()) {
             case REQUEST -> onRequest(packet.resource());
             case GOOD_RESPONSE -> onGoodResponse(packet);
-            case BAD_RESPONSE -> System.out.println("Bad request : " + packet.resource());
+            case BAD_RESPONSE -> System.out.println("Bad request! The resource : " + packet.resource() + " doesn't exist.");
         }
     }
 

@@ -41,6 +41,7 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     // ------------------------------------------------
 
     /**
+     * @param resource the name of the bad resource. Cannot be null.
      * @return a new {@link HTTPPacket} representing a bad response.
      */
     public static HTTPPacket createBadResponse(String resource) {

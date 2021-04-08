@@ -47,8 +47,8 @@ public class ServerMessageDisplay {
         System.out.println(sc(sc) + " trying to authenticate with the pseudo " + other(other));
     }
     public static void onBadTokenPacket(String pseudo) {
-        System.out.println(color("Received a TOKEN packet from " + me(pseudo), RED1) +
-                           color(" who doesn't represent private connection", RED1));
+        System.out.println(color("Received a TOKEN packet from " + me(pseudo), RED2) +
+                           color(" who doesn't represent private connection", RED2));
     }
     public static void onTokenPacket(SocketChannel sc, int token) {
         System.out.println("Received a TOKEN packet from " + sc(sc) + " with content " +
@@ -64,26 +64,26 @@ public class ServerMessageDisplay {
         System.out.println(me(pseudo) + " sent " + message(msg) + " to everyone");
     }
     public static void onBadAuthPacket(String pseudo) {
-        System.out.println(color("Received an AUTH packet from ", RED1) + me(pseudo) +
-                color(" but already identified with the pseudo: ", RED1) + other(pseudo));
+        System.out.println(color("Received an AUTH packet from ", RED2) + me(pseudo) +
+                color(" but already identified with the pseudo: ", RED2) + other(pseudo));
     }
     public static void onRejectError(String other, String pseudo) {
-        System.out.println(me(pseudo) + color(" reject private connection from ", RED1) + other(other));
+        System.out.println(me(pseudo) + color(" reject private connection from ", RED2) + other(other));
     }
     public static void onBadRecoverError(String pseudo) {
-        System.out.println(color("Received a RECOVER packet from ", RED1) + me(pseudo) +
-                color(" while not being rejecting!", RED1));
+        System.out.println(color("Received a RECOVER packet from ", RED2) + me(pseudo) +
+                color(" while not being rejecting!", RED2));
     }
     public static void onServerInternalError(String pseudo) {
-        System.out.println(color("Error : Server sent an invalid packet to ", RED1) + me(pseudo));
+        System.out.println(color("Error : Server sent an invalid packet to ", RED2) + me(pseudo));
     }
     public static void onBadError(Packet.ErrorCode code) {
-        System.out.println(color("Receive unwanted error packet: ", RED1) +
+        System.out.println(color("Receive unwanted error packet: ", RED2) +
                 color(code.toString(), MAGENTA));
     }
     public static void onErrorProcessed(String pseudo) {
-        System.out.println(color("Stops accepting data from ",RED) + me(pseudo) +
-                color(" until reception of ERROR_RECOVER!", RED));
+        System.out.println(color("Stops accepting data from ",RED2) + me(pseudo) +
+                color(" until reception of ERROR_RECOVER!", RED2));
     }
     public static void onRecover(String pseudo) {
         System.out.println(me(pseudo) + color(" recovers from previous error!",GREEN));
