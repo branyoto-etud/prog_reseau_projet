@@ -1,10 +1,10 @@
-package fr.uge.net.tcp.nonblocking.reader;
+package fr.uge.net.tcp.nonblocking.http;
 
-import fr.uge.net.tcp.nonblocking.Config;
+import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.Config.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static java.nio.charset.StandardCharsets.US_ASCII;

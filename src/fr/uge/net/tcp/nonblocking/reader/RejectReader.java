@@ -1,15 +1,13 @@
-package fr.uge.net.tcp.nonblocking.server;
+package fr.uge.net.tcp.nonblocking.reader;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.client.AbstractContext;
-import fr.uge.net.tcp.nonblocking.reader.PacketReader;
-import fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure;
+import fr.uge.net.tcp.nonblocking.context.AbstractContext;
+import fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeErrorPacket;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketType.ERR;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeErrorPacket;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.ERR;
 
 public class RejectReader {
     private static final int ERR_CODE = ERR.ordinal();
@@ -19,22 +17,22 @@ public class RejectReader {
     private byte last = 1;
 
     /**
-     * If the {@link RejectReader} is not in reject mode, returns true.
+     * If the {@link RejectReader} is not in reject mode, returns false.
      * Otherwise tries to read until the sequence of byte : {@link #ERR_CODE} | {@link #RECOVER_CODE}
-     * is found. If the sequence is found in the {@code buff}, returns true; false otherwise.
+     * is found. If the sequence is found in the {@code buff}, returns false; true otherwise.
      *
      * @param buff the input data. Must be in write-mode.
-     * @return false if the reader has not found the sequence; true if the reader is not
+     * @return true if the reader is still rejecting; false if the reader is not
      * rejecting or if the sequence is found.
      */
     public boolean process(ByteBuffer buff) {
-        if (!rejecting) return true;
+        if (!rejecting) return false;
         var completed = subProcess(buff.flip());
         buff.compact();
-        if (!completed) return false;
+        if (!completed) return true;
         last = 1;
         rejecting = false;
-        return true;
+        return false;
     }
 
     /**

@@ -1,11 +1,9 @@
 package fr.uge.net.tcp.nonblocking.reader;
 
-import fr.uge.net.tcp.nonblocking.Config;
-
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
-import static fr.uge.net.tcp.nonblocking.Config.TEXT_SIZE;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.TEXT_SIZE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
@@ -20,7 +18,7 @@ import static java.util.Objects.requireNonNull;
  * ----------------------------</pre>
  * <br>
  * The {@code length} of the message cannot be greater than
- * {@link Config#TEXT_SIZE}.
+ * {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
  *
  * The method {@link #process(ByteBuffer)} can be used to read a message until
  * it returns {@link ProcessStatus#DONE}.
@@ -59,7 +57,7 @@ public class StringReader implements Reader<String> {
      * <ul><li>   {@link ProcessStatus#REFILL} :
      *     if the reader has not finished.
      * <li>   {@link ProcessStatus#ERROR} :
-     *     if the length of the message is not between 1 and {@link Config#TEXT_SIZE}.
+     *     if the length of the message is not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
      * <li>   {@link ProcessStatus#DONE} :
      *     if the message is ready to be get.
      *

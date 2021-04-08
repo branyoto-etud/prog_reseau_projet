@@ -1,16 +1,17 @@
-package fr.uge.net.tcp.nonblocking.reader;
+package fr.uge.net.tcp.nonblocking.packet;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.Packet.PacketType;
+import fr.uge.net.tcp.nonblocking.packet.Packet.PacketType;
+import fr.uge.net.tcp.nonblocking.reader.Reader;
+import fr.uge.net.tcp.nonblocking.reader.StringReader;
 
 import java.nio.ByteBuffer;
 import java.util.function.Function;
 
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
-import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.REJECTED;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.CODE;
-import static fr.uge.net.tcp.nonblocking.reader.PacketReader.ProcessFailure.LENGTH;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.REJECTED;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure.CODE;
+import static fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure.LENGTH;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.util.Objects.requireNonNull;
 
@@ -45,8 +46,8 @@ public class PacketReader implements Reader<Packet> {
      *   <li>   {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     <ul>
      *       <li> If the type is not recognized.</li> <!--LATEST replace with the correct range-->
-     *       <li> If the type is {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#ERR} and the code is not recognized.</li> <!--LATEST replace with the correct range-->
-     *       <li> If any length read is not between 1 and {@link fr.uge.net.tcp.nonblocking.Config#TEXT_SIZE}.</li>
+     *       <li> If the type is {@link Packet.PacketType#ERR} and the code is not recognized.</li> <!--LATEST replace with the correct range-->
+     *       <li> If any length read is not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.</li>
      *     </ul>
      *   </li>
      * </ul>
@@ -110,14 +111,14 @@ public class PacketReader implements Reader<Packet> {
     }
 
     /**
-     * Reads one byte for the error code and if the code is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}
+     * Reads one byte for the error code and if the code is {@link Packet.ErrorCode#REJECTED}
      * read an int and a string.
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
      *     if the reader has finished reading.
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
-     *     if {@code bb} is empty or if the code is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED} and
+     *     if {@code bb} is empty or if the code is {@link Packet.ErrorCode#REJECTED} and
      *     the int or the string cannot be read.
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     if the error code read is invalid (sets {@link #failure} to {@link ProcessFailure#CODE}).
@@ -126,7 +127,7 @@ public class PacketReader implements Reader<Packet> {
      *
      * @param bb buffer in write-mode.
      * @return the current status of the reader.
-     * @see fr.uge.net.tcp.nonblocking.Packet.PacketBuilder#makeErrorPacket(byte)
+     * @see Packet.PacketBuilder#makeErrorPacket(byte)
      */
     private ProcessStatus processError(ByteBuffer bb) {
         if (errorCode == -1) {

@@ -1,10 +1,11 @@
 package fr.uge.net.tcp.nonblocking.server;
 
-import fr.uge.net.tcp.nonblocking.ChatOSUtils;
-import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.client.AbstractContext;
-import fr.uge.net.tcp.nonblocking.client.Context;
-import fr.uge.net.tcp.nonblocking.reader.PacketReader;
+import fr.uge.net.tcp.nonblocking.reader.RejectReader;
+import fr.uge.net.tcp.nonblocking.utils.ChatOSUtils;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
+import fr.uge.net.tcp.nonblocking.context.AbstractContext;
+import fr.uge.net.tcp.nonblocking.context.Context;
+import fr.uge.net.tcp.nonblocking.packet.PacketReader;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,11 +17,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.copyBuffer;
-import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.*;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketType.AUTH;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketType.TOKEN;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.copyBuffer;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.AUTH;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.TOKEN;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.nio.channels.SelectionKey.OP_READ;
 import static java.util.Objects.requireNonNull;
@@ -50,7 +51,7 @@ public class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (!rejectReader.process(bbIn)) return;
+            if (rejectReader.process(bbIn)) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
             if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
@@ -136,7 +137,7 @@ public class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (!rejectReader.process(bbIn)) return;
+            if (rejectReader.process(bbIn)) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
             if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
@@ -163,7 +164,7 @@ public class ServerChatOS {
 
         /**
          * If the error code contained {@code packet} is
-         * {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}, tries to remove
+         * {@link Packet.ErrorCode#REJECTED}, tries to remove
          * the pending connection between the two clients and forwards the rejection to
          * the other client.
          *
@@ -238,7 +239,7 @@ public class ServerChatOS {
          * If the packet represents a private connection positive response,
          * remove the connection from the pending connection and add it into
          * the actual established connections.
-         * Also send a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN} packet
+         * Also send a {@link Packet.PacketType#TOKEN} packet
          * to the two client with the private connection identifier.
          *
          * @param token the identifier of the connection.

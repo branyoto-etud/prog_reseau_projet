@@ -1,11 +1,11 @@
 package fr.uge.net.tcp.nonblocking.server;
 
-import fr.uge.net.tcp.nonblocking.Packet;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
 
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
-import static fr.uge.net.tcp.nonblocking.Packet.ErrorCode.ERROR_RECOVER;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.ERROR_RECOVER;
 
 /**
  *

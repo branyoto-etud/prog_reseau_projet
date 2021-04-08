@@ -1,7 +1,8 @@
-package fr.uge.net.tcp.nonblocking;
+package fr.uge.net.tcp.nonblocking.packet;
 
 import java.nio.ByteBuffer;
 
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.*;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -130,20 +131,20 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      *     <li>{@link ErrorCode#DEST_ERROR} : Destination error. If the destination is not connected to the server.
      *     <li>{@link ErrorCode#REJECTED} : Private Connection Rejected. If the private connection is rejected by the other client.
      *     <li>{@link ErrorCode#WRONG_CODE} : Wrong Code. If the code ({@link PacketType} or {@link ErrorCode} is invalid.
-     *     <li>{@link ErrorCode#INVALID_LENGTH} : Invalid text length. If the length of a text is negative, 0 or greater than {@link Config#TEXT_SIZE}.
+     *     <li>{@link ErrorCode#INVALID_LENGTH} : Invalid text length. If the length of a text is negative, 0 or greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
      *     <li>{@link ErrorCode#ERROR_RECOVER} : Recovering of an error. If the client tries to recover from an error he made.
      */
     public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER}
 
     /**
-     * Check if {@code length} is not greater than {@link Config#TEXT_SIZE}.
+     * Check if {@code length} is not greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
      * @param length the length to check.
      * @return the same length if correct.
-     * @throws IllegalStateException if the length is greater than {@link Config#TEXT_SIZE}.
+     * @throws IllegalStateException if the length is greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
      */
     private static int checkLength(int length) {
-        if (length > Config.TEXT_SIZE) {
-            throw new IllegalStateException("The message cannot be converted because the encoding of a string is greater than " + Config.TEXT_SIZE);
+        if (length > TEXT_SIZE) {
+            throw new IllegalStateException("The message cannot be converted because the encoding of a string is greater than " + TEXT_SIZE);
         }
         return length;
     }
@@ -167,7 +168,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      *
      * @return a buffer in read-mode containing the message to be sent.
      * The returned buffer is a new one for each call.
-     * @throws IllegalStateException if any string encoded in {@link java.nio.charset.StandardCharsets#UTF_8} is greater than {@link Config#TEXT_SIZE}.
+     * @throws IllegalStateException if any string encoded in {@link java.nio.charset.StandardCharsets#UTF_8} is greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
      */
     public ByteBuffer toBuffer() {
         return (switch (type) {

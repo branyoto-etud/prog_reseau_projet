@@ -1,12 +1,14 @@
-package fr.uge.net.tcp.nonblocking.reader;
+package fr.uge.net.tcp.nonblocking.http;
+
+import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.copyBuffer;
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.moveData;
-import static fr.uge.net.tcp.nonblocking.Config.CONTENT_MAX_SIZE;
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.GOOD_RESPONSE;
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.copyBuffer;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.HTTPPacketType.GOOD_RESPONSE;
+import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
@@ -36,7 +38,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
      *     <ul>
      *       <li> If the first line doesn't starts with 'HTTP' nor 'GET'. </li>
      *       <li> If the first line starts with 'GET' but doesn't ends with 'HTTP/1.1'. </li>
-     *       <li> If this is a response but the size is negative or above {@link fr.uge.net.tcp.nonblocking.Config#BUFFER_MAX_SIZE}. </li>
+     *       <li> If this is a response but the size is negative or above {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#BUFFER_MAX_SIZE}. </li>
      *       <li> If this is a response but the size is not in the header (i.e. there's no field "Content-Length"). </li>
      *     </ul>
      *   </li>
@@ -120,7 +122,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
      * Reads lines from the buffer until blank line is read.
      * Return REFILL if the buffer is empty and no empty line has been read.<br>
      * Return ERROR if a line contains a field "Content-Length" with an incorrect value
-     * (i.e. negative or above {@link fr.uge.net.tcp.nonblocking.Config#CONTENT_MAX_SIZE}).
+     * (i.e. negative or above {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#CONTENT_MAX_SIZE}).
      *
      * @param bb buffer in write-mode.
      * @return the current state of the reader.
@@ -151,7 +153,7 @@ public class HTTPReader implements Reader<HTTPPacket> {
      *     if the line is blank.
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     if the line starts with "Content-Length:" but the content is incorrect
-     *     (i.e. negative or above {@link fr.uge.net.tcp.nonblocking.Config#CONTENT_MAX_SIZE}).
+     *     (i.e. negative or above {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#CONTENT_MAX_SIZE}).
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
      *     In any other case (even when the processing of the line has done something).
      * </ul>

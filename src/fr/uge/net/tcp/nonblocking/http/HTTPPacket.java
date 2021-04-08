@@ -1,8 +1,8 @@
-package fr.uge.net.tcp.nonblocking.reader;
+package fr.uge.net.tcp.nonblocking.http;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.HTTPPacketType.*;
+import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.HTTPPacketType.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.Objects.requireNonNull;
 

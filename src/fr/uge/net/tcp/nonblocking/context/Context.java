@@ -1,4 +1,4 @@
-package fr.uge.net.tcp.nonblocking.client;
+package fr.uge.net.tcp.nonblocking.context;
 
 import java.io.IOException;
 

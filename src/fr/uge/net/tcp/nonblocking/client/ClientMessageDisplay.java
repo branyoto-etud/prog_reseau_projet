@@ -1,6 +1,6 @@
 package fr.uge.net.tcp.nonblocking.client;
 
-import fr.uge.net.tcp.nonblocking.Packet;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
 
 import static java.util.Objects.requireNonNull;
 

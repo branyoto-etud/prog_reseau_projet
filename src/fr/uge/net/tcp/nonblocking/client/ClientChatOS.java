@@ -1,11 +1,11 @@
 package fr.uge.net.tcp.nonblocking.client;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.reader.PacketReader;
+import fr.uge.net.tcp.nonblocking.context.AbstractContext;
+import fr.uge.net.tcp.nonblocking.context.Context;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
+import fr.uge.net.tcp.nonblocking.packet.PacketReader;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
@@ -16,8 +16,8 @@ import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.ChatOSUtils.silentlyClose;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
 import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onMessageReceived;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
@@ -68,10 +68,10 @@ public class ClientChatOS {
         }
 
         /**
-         * If the client receive a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#PC} packet,
+         * If the client receive a {@link Packet.PacketType#PC} packet,
          * there's 2 options:<br>
          *  - This is the client who sent the request and this packet is a positive response.
-         *  In this case we wait for the {@link  fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN}
+         *  In this case we wait for the {@link  Packet.PacketType#TOKEN}
          *  packet from the server to start te private connection.<br>
          *  - This isn't the client who sent the request, so we put this client in wait mode until
          *  he enter 'y' or 'n' to refuse/accept the connection.
@@ -84,7 +84,7 @@ public class ClientChatOS {
         }
 
         /**
-         * When the client receive a {@link fr.uge.net.tcp.nonblocking.Packet.PacketType#TOKEN} packet,
+         * When the client receive a {@link Packet.PacketType#TOKEN} packet,
          * we need to starts a new socket and connects it to the server.
          * @param packet the received packet.
          */
@@ -102,10 +102,10 @@ public class ClientChatOS {
         /**
          * On error reception, do an action.
          * <ul>
-         *     <li> If the error is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#REJECTED}, remove the request from
+         *     <li> If the error is {@link Packet.ErrorCode#REJECTED}, remove the request from
          *     the {@link #pendingConnection}.
-         *     <li> If the error is {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#WRONG_CODE}
-         *     or {@link fr.uge.net.tcp.nonblocking.Packet.ErrorCode#INVALID_LENGTH}, send an amend packet to let the server
+         *     <li> If the error is {@link Packet.ErrorCode#WRONG_CODE}
+         *     or {@link Packet.ErrorCode#INVALID_LENGTH}, send an amend packet to let the server
          *     know that he's not ignoring packets anymore.
          *     <li> The other error are just displayed.
          * </ul>

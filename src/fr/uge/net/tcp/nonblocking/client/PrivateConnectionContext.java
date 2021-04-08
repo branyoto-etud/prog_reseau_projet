@@ -1,8 +1,10 @@
 package fr.uge.net.tcp.nonblocking.client;
 
-import fr.uge.net.tcp.nonblocking.Packet;
-import fr.uge.net.tcp.nonblocking.reader.HTTPPacket;
-import fr.uge.net.tcp.nonblocking.reader.HTTPReader;
+import fr.uge.net.tcp.nonblocking.context.AbstractContext;
+import fr.uge.net.tcp.nonblocking.context.Context;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
+import fr.uge.net.tcp.nonblocking.http.HTTPPacket;
+import fr.uge.net.tcp.nonblocking.http.HTTPReader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -16,14 +18,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import static fr.uge.net.tcp.nonblocking.Config.CONTENT_MAX_SIZE;
-import static fr.uge.net.tcp.nonblocking.Packet.PacketBuilder.makeTokenPacket;
-import static fr.uge.net.tcp.nonblocking.reader.HTTPPacket.*;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeTokenPacket;
+import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static java.lang.Integer.parseInt;
-import static java.nio.channels.SelectionKey.OP_CONNECT;
 import static java.util.Objects.requireNonNull;
 
 class PrivateConnectionContext extends AbstractContext implements Context {
@@ -127,7 +127,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
 
     /**
      * Reads the file {@code resource} and creates multiple {@link HTTPPacket} if the file
-     * is bigger than {@link fr.uge.net.tcp.nonblocking.Config#CONTENT_MAX_SIZE}.
+     * is bigger than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#CONTENT_MAX_SIZE}.
      *
      * @param resource the requested resource. Cannot be null.
      * @param contentType the type of the content. Can be either {@link HTTPPacket#TEXT_CONTENT}
