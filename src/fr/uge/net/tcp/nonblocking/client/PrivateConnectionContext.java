@@ -111,7 +111,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     @Override
     public void doRead() throws IOException {
         super.doRead();
-        if (!isConnected()){ // Todo: find better solution
+        if (!isConnected()){
             throw new IOException("Connection closed");
         }
     }

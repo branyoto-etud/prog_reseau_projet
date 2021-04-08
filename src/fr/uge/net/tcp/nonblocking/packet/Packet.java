@@ -30,7 +30,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * Utility class made to create {@link Packet} more easily.
      * If one of the parameter is null, the returned packet will be null.
      */
-    public static class PacketBuilder { // Todo : Maybe return Optional
+    public static class PacketBuilder {
         /**
          * Creates an error packet with the given error code.
          * @param code the error code.
