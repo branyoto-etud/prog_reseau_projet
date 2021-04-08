@@ -58,7 +58,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * Analyses the type of the {@code packet} choose an action.
+     * Analyses the type of the {@code packet} and chooses an action.
      * @param packet the meaning full packet.
      */
     private void treatPacket(HTTPPacket packet) {
@@ -70,7 +70,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * Send the requested resource if it exists else send a bad Http Response.
+     * Sends the requested resource if it exists else sends a bad HTTP Response.
      * @param resource the requested resource.
      */
     private void onRequest(String resource) {
@@ -85,7 +85,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     /**
      * If the packet contains a good HTTP response.
      * Displays the content if it contains text.
-     * Or saves it inside the file {@code resource} in {@link #directory} otherwise.
+     * Else, saves it inside the file {@code resource} in {@link #directory} otherwise.
      *
      * @param packet the response packet.
      */
@@ -94,7 +94,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
         else writeAsData(packet.content(), packet.resource());
     }
     /**
-     * Add the request for the given {@code resource} to the message queue.
+     * Adds the request for the given {@code resource} to the message queue.
      * @param resource the requested resource. Cannot be null.
      */
     public void queueMessage(String resource) {
@@ -132,8 +132,8 @@ class PrivateConnectionContext extends AbstractContext implements Context {
      * @param resource the requested resource. Cannot be null.
      * @param contentType the type of the content. Can be either {@link HTTPPacket#TEXT_CONTENT}
      *                    or {@link HTTPPacket#OTHER_CONTENT}.
-     * @return the list of created packets. Or A list with only a Bad HTTP Response
-     * if the file produce an {@link IOException}.
+     * @return the list of created packets, or a list with only a Bad HTTP Response
+     * if the file produces an {@link IOException}.
      */
     private List<HTTPPacket> resourceToPackets(String resource, String contentType) {
         try (var fc = FileChannel.open(resourceToPath(resource), StandardOpenOption.READ)) {
@@ -146,7 +146,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * Fill the input list with the packets read by the method.
+     * Fills the input list with the packets read by the method.
      *
      * @param packets the list to fill. Cannot be null.
      * @param fc the file where to read. Cannot be null.
@@ -169,7 +169,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * Display in the standard output the {@code content} decoded in {@link StandardCharsets#UTF_8}.
+     * Displays in the standard output the {@code content} decoded in {@link StandardCharsets#UTF_8}.
      * @param content the content to display. Cannot be null.
      */
     private static void writeAsText(ByteBuffer content) {
@@ -178,7 +178,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * Writes the {@code content} into the give file.
+     * Writes the {@code content} into the given file.
      * @param content the content to write. Cannot be null.
      * @param resource the file where to write the content.
      */

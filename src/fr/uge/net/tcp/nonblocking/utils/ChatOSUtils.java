@@ -23,7 +23,7 @@ public class ChatOSUtils {
     public static final int HTTP_HEADER_MAX_SIZE = 1000;
     /**
      * Actual maximum size of the content in an HTTP Response.
-     * Any content with a bigger length than needed will be slitted in 2 HTTP Responses.
+     * Any content with a greater length than needed will be slitted in 2 HTTP Responses.
      */
     public static final int CONTENT_MAX_SIZE = BUFFER_MAX_SIZE - HTTP_HEADER_MAX_SIZE;
     /**

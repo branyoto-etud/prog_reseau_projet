@@ -7,13 +7,13 @@ import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
 import java.util.Objects;
 
-import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectFail;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
+import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectFail;
 import static java.nio.channels.SelectionKey.*;
 
 /**
- * Abstract context are used to group all methods common between all implementations of {@link Context}.
+ * Abstract context are used to group all common methods among all implementations of {@link Context}.
  */
 public abstract class AbstractContext implements Context {
     /**
@@ -72,14 +72,14 @@ public abstract class AbstractContext implements Context {
              .put(queue.remove());
     }
     /**
-     * Updates the interest operators of {@link #key} based on the values inside
+     * Updates the interest operators of {@link #key} based on the values inside of
      * {@link #bbIn} and {@link #bbOut}.
-     * The operators will be sets to:
+     * The operators will be set to:
      * <ul>
      *     <li> {@link SelectionKey#OP_READ} if the channel isn't closed and there's space left in {@link #bbIn}.
      *     <li> {@link SelectionKey#OP_WRITE} if {@link #bbOut} has something to write.
      * </ul>
-     * The operators can be cumulated. If the none of the above conditions are meet, the channel is closed.
+     * The operators can be cumulated. If none of the above conditions are met, the channel is closed.
      *
      * @return the value of the operator assigned to the key.
      */
@@ -94,7 +94,7 @@ public abstract class AbstractContext implements Context {
     }
     /**
      * Reads data in {@link #bbIn}.
-     * If there's no data to read, {@link #closed} is sets to true.
+     * If there is no data to read, {@link #closed} is set to true.
      *
      * @throws IOException if an I/O error occurs.
      */
@@ -142,7 +142,7 @@ public abstract class AbstractContext implements Context {
     }
 
     /**
-     * Close properly the socket.
+     * Closes properly the socket.
      */
     public void close() {
         silentlyClose(sc);
