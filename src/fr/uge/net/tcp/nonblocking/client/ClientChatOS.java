@@ -16,12 +16,12 @@ import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectSuccess;
 import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onMessageReceived;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
@@ -38,7 +38,7 @@ public class ClientChatOS {
 
         /**
          * Processes {@link #bbIn} into the {@link #reader}.
-         * If the {@link #reader} has finished, analyse it.
+         * If the {@link #reader} has finished, analyses it.
          */
         public void processIn() {
             var status = reader.process(bbIn);
@@ -48,7 +48,7 @@ public class ClientChatOS {
         }
 
         /**
-         * Analyses the {@code packet} and choose what to do:<br/>
+         * Analyses the {@code packet} and chooses what to do:<br/>
          *     - Recover from an error<br/>
          *     - Validate connection<br/>
          *     - Accept private connection<br/>
@@ -68,13 +68,13 @@ public class ClientChatOS {
         }
 
         /**
-         * If the client receive a {@link Packet.PacketType#PC} packet,
-         * there's 2 options:<br>
-         *  - This is the client who sent the request and this packet is a positive response.
-         *  In this case we wait for the {@link  Packet.PacketType#TOKEN}
-         *  packet from the server to start te private connection.<br>
-         *  - This isn't the client who sent the request, so we put this client in wait mode until
-         *  he enter 'y' or 'n' to refuse/accept the connection.
+         * If the client receives a {@link Packet.PacketType#PC} packet,
+         * 2 options are available:<br>
+         *  - The request was sent by the client and the packet is a positive response.
+         *  In this case, we wait for the {@link  Packet.PacketType#TOKEN}
+         *  packet from the server to start the private connection.<br>
+         *  - The request wasn't sent by the client, so we pause the client until
+         *  he submits 'y' or 'n' to accept/refuse the connection.
          * @param packet the received packet.
          */
         private void onPrivateConnection(Packet packet) {
@@ -84,8 +84,8 @@ public class ClientChatOS {
         }
 
         /**
-         * When the client receive a {@link Packet.PacketType#TOKEN} packet,
-         * we need to starts a new socket and connects it to the server.
+         * When the client receives a {@link Packet.PacketType#TOKEN} packet,
+         * starts a new socket and connects it to the server.
          * @param packet the received packet.
          */
         private void onToken(Packet packet) {
@@ -100,14 +100,14 @@ public class ClientChatOS {
         }
 
         /**
-         * On error reception, do an action.
+         * On error reception, does an action.
          * <ul>
-         *     <li> If the error is {@link Packet.ErrorCode#REJECTED}, remove the request from
+         *     <li> If the error is {@link Packet.ErrorCode#REJECTED}, removes the request from
          *     the {@link #pendingConnection}.
          *     <li> If the error is {@link Packet.ErrorCode#WRONG_CODE}
-         *     or {@link Packet.ErrorCode#INVALID_LENGTH}, send an amend packet to let the server
+         *     or {@link Packet.ErrorCode#INVALID_LENGTH}, sends an amend packet to let the server
          *     know that he's not ignoring packets anymore.
-         *     <li> The other error are just displayed.
+         *     <li> The other errors are only displayed.
          * </ul>
          *
          * @param packet the packet that contains the error.
@@ -124,7 +124,7 @@ public class ClientChatOS {
          * Add {@code line} to the end of the queue after a treatment.<br>
          * If the client is currently locked by a private connection request, accept only {@code line}
          * that starts with 'n' or 'y'.<br>
-         * Otherwise, send the line inside a packet as a general message, a direct message
+         * Otherwise, sends the line inside a packet as a general message, a direct message
          * or a private connection request depending on the {@code line} content.
          *
          * @param line the line to queue. Cannot be null.
@@ -147,7 +147,7 @@ public class ClientChatOS {
             queueMessage(packet.toBuffer());
         }
         /**
-         * While the input is locked by a private connection request, only accept line
+         * While the input is locked by a private connection request, only accepts a line
          * that starts with 'y' for an acceptation or 'n' for a reject. (the case doesn't matter)<br>
          * Any other {@code line} content will be ignored.
          * Note : The rest of te {@code line} is ignored.
@@ -165,20 +165,19 @@ public class ClientChatOS {
             }
         }
         /**
-         * Send a message depending on the first chars of the {@code line}:
-         *  - if the {@code line} starts with '@', send a direct message if possible.<br>
-         *  - if the {@code line} starts with '/', send a private connection request if possible
+         * Sends a message depending on the first chars of the {@code line}:
+         *  - if the {@code line} starts with '@', sends a direct message if possible.<br>
+         *  - if the {@code line} starts with '/', sends a private connection request if possible
          *  or only a request if the two clients are already connected.<br>
-         *  - if the {@code line} starts with '\@' or '\/', send a general message
+         *  - if the {@code line} starts with '\@' or '\/', sends a general message
          *  without the '\'.<br>
-         *  - in any fail case, send a general message containing the full {@code line}.
+         *  - in any fail case, sends a general message containing the full {@code line}.
          * @param line the line to send.
          */
         private void parseInput(String line) {
             requireNonNull(line);
             if (!connected) {
-                pseudo = line;
-                queueMessage(makeAuthenticationPacket(line).toBuffer());
+                queueMessage(makeAuthenticationPacket(pseudo = line).toBuffer());
                 return;
             }
             if (line.startsWith("@") && sendDirectMessage(line)) return;
@@ -203,9 +202,9 @@ public class ClientChatOS {
         }
 
         /**
-         * Send a private connection request to the pseudo (i.e. the first word of the {@code line})
+         * Sends a private connection request to the pseudo (i.e. the first word of the {@code line})
          * with the request of what's left on the {@code line}.
-         * If this client is already connected to the pseudo, only send the request to the other client
+         * If this client is already connected to the pseudo, only sends the request to the other client
          * (not a connection request).
          *
          * @param line the {@code line} to interpret. Cannot be null.
@@ -225,6 +224,11 @@ public class ClientChatOS {
             return true;
         }
 
+        /**
+         * If the connection is successful, updates interest operator.
+         *
+         * @throws IOException if an I/O error occurs.
+         */
         @Override
         public void doConnect() throws IOException {
             super.doConnect();
@@ -244,7 +248,7 @@ public class ClientChatOS {
     private final String directory;
 
     /**
-     * Create a client with a socket and a selector.
+     * Creates a client with a socket and a selector.
      * @param serverAddress the address of the server. Cannot be null.
      * @param directory the working directory. Cannot be null.
      * @throws IOException if an I/O error occurs.
@@ -259,7 +263,7 @@ public class ClientChatOS {
 
     /**
      * Console tread.
-     * Read a line and send it to {@link #mainContext}.
+     * Reads a line and send it to {@link #mainContext}.
      */
     private void consoleRun() {
         try (var scan = new Scanner(System.in)) {
@@ -274,8 +278,8 @@ public class ClientChatOS {
     }
 
     /**
-     * Send the line to the {@link #mainContext} if not empty.
-     * And wakeup the main thread.
+     * Sends the line to the {@link #mainContext} if not empty.
+     * And wakes up the main thread.
      *
      * @param line the line to send.
      * @throws IOException if the {@link #selector} is closed.
@@ -289,7 +293,7 @@ public class ClientChatOS {
     }
 
     /**
-     * Actually send the line to the {@link #mainContext}.
+     * Actually sends the line to the {@link #mainContext}.
      */
     private void processLine() {
         synchronized (commandQueue) {
@@ -318,7 +322,7 @@ public class ClientChatOS {
 
     /**
      * Actually starts the client by registering the socket into
-     * the selector and connect it to the server. And start the console thread.
+     * the selector and connects it to the server. And starts the console thread.
      *
      * @throws IOException if an I/O error occurs.
      */
@@ -343,8 +347,8 @@ public class ClientChatOS {
     }
 
     /**
-     * Do the available action (whether Connect, Write or Read) on the key.
-     * If a key is closed (other than the main one) display a message and close it properly.
+     * Does the available action (whether Connect, Write or Read) on the key.
+     * If a key is closed (other than the main one) displays a message and closes it properly.
      *
      * @param key the current key to treat.
      * @throws UncheckedIOException if the main channel is closed.
