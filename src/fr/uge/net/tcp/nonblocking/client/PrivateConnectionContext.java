@@ -83,7 +83,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
     }
 
     /**
-     * If the packet contains a good Http response.
+     * If the packet contains a good HTTP response.
      * Displays the content if it contains text.
      * Or saves it inside the file {@code resource} in {@link #directory} otherwise.
      *

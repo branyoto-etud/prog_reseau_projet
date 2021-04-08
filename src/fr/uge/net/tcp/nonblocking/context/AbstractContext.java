@@ -110,7 +110,7 @@ public abstract class AbstractContext implements Context {
         updateInterestOps();
     }
     /**
-     * If the connection is successful, update interest operator.
+     * If the connection is successful, updates interest operator.
      *
      * @throws IOException if an I/O error occurs.
      */
