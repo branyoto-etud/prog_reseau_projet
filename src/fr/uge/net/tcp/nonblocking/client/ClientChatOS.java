@@ -18,8 +18,8 @@ import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectSuccess;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onMessageReceived;
+import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectSuccess;
+import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onMessageReceived;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static java.lang.Integer.parseInt;

@@ -3,7 +3,7 @@ package fr.uge.net.tcp.nonblocking.packet;
 import java.nio.ByteBuffer;
 
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.*;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.*;
+import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**

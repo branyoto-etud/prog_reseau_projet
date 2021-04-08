@@ -11,7 +11,7 @@ import java.util.Objects;
 
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
-import static fr.uge.net.tcp.nonblocking.client.ClientMessageDisplay.onConnectFail;
+import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectFail;
 import static java.nio.channels.SelectionKey.*;
 
 /**

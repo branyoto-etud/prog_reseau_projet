@@ -94,10 +94,9 @@ public class HTTPReader implements Reader<HTTPPacket> {
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the line starts with "HTTP/1.1" and with a code different of 200
-     *     (i.e. a bad response) or if the line starts with "GET" (i.e. a request).
+     *     if the line starts with "GET" (i.e. a request).
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
-     *     if the line starts with "HTTP/1.1" and the code 200.
+     *     if the line starts with "HTTP/1.1".
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     if the line doesn't starts with "HTTP/1.1" nor "GET".
      * </ul>
