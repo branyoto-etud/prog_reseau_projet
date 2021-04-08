@@ -4,9 +4,9 @@ import fr.uge.net.tcp.nonblocking.reader.Reader;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.Objects.requireNonNull;
 

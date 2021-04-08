@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
 import static fr.uge.net.tcp.nonblocking.display.AnsiColors.*;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.ERROR_RECOVER;
 
 public class ServerMessageDisplay {
     public static void onPacketReceived(Packet p, String pseudo) {

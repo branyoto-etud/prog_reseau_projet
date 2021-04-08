@@ -2,9 +2,9 @@ package fr.uge.net.tcp.nonblocking.client;
 
 import fr.uge.net.tcp.nonblocking.context.AbstractContext;
 import fr.uge.net.tcp.nonblocking.context.Context;
-import fr.uge.net.tcp.nonblocking.packet.Packet;
 import fr.uge.net.tcp.nonblocking.http.HTTPPacket;
 import fr.uge.net.tcp.nonblocking.http.HTTPReader;
+import fr.uge.net.tcp.nonblocking.packet.Packet;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -19,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeTokenPacket;
 import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeTokenPacket;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 

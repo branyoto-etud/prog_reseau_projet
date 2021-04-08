@@ -1,7 +1,5 @@
 package fr.uge.net.tcp.nonblocking.context;
 
-import fr.uge.net.tcp.nonblocking.context.Context;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -9,9 +7,9 @@ import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
 import java.util.Objects;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectFail;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
 import static java.nio.channels.SelectionKey.*;
 
 /**

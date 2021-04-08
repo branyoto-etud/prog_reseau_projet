@@ -2,8 +2,8 @@ package fr.uge.net.tcp.nonblocking.reader;
 
 import java.nio.ByteBuffer;
 
-import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.TEXT_SIZE;
+import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 

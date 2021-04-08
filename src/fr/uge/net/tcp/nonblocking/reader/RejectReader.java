@@ -4,7 +4,6 @@ import fr.uge.net.tcp.nonblocking.context.AbstractContext;
 import fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 
 import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onErrorProcessed;
 import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onRecover;
