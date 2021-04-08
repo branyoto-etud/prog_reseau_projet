@@ -1,5 +1,3 @@
-
-
 ### Syntax
 
 - Global message : one line
@@ -9,16 +7,6 @@
 Escape char '@' and '/' if first char
 \/pseudo  <=>  send a global message with the content '/pseudo'
 Same with @
-
-### Todo
-
-- Client : Only tries to authenticate once at the time
-        -> Wait for AUTH packet or AUTH_ERROR packet to send another AUTH packet
-- Client : fuse PCCtx::launch and constructor
-- Client : Invalid token
-- Client : Too much client w/ the same token (more than two)
-
-- Correct PC msg forwarding (and do perfect forwarding in C++)
 
 ### Disclaimer 
 The only file that is ensured to be up to date is the Protocole.txt.
