@@ -25,7 +25,7 @@ public abstract class AbstractContext implements Context {
     /**
      * The stored buffers are in read-mode.
      */
-    protected final LinkedList<ByteBuffer> queue = new LinkedList<>();
+    private final LinkedList<ByteBuffer> queue = new LinkedList<>();
     /**
      * Input buffer is in write-mode.
      */
@@ -56,6 +56,15 @@ public abstract class AbstractContext implements Context {
         updateInterestOps();
     }
     /**
+     * Adds this buffer at the start of queue and tries to fill {@link #bbOut}.
+     * @param buff the buffer in write mode to add to the {@link #queue} to send.
+     */
+    public void insertFirstMessage(ByteBuffer buff) {
+        queue.add(buff);
+        processOut();
+        updateInterestOps();
+    }
+    /**
      * Takes an element from the {@link #queue} and
      * stores it into {@link #bbOut} if empty.
      */
@@ -80,7 +89,7 @@ public abstract class AbstractContext implements Context {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
-        if (!connected)                     op  = OP_CONNECT;
+        if (!connected)                     op |= OP_CONNECT;
         if (op == 0)                        close();
         else                                key.interestOps(op);
         return op;

@@ -4,7 +4,10 @@ import fr.uge.net.tcp.nonblocking.context.AbstractContext;
 import fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 
+import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onErrorProcessed;
+import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onRecover;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeErrorPacket;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.ERR;
@@ -25,13 +28,14 @@ public class RejectReader {
      * @return true if the reader is still rejecting; false if the reader is not
      * rejecting or if the sequence is found.
      */
-    public boolean process(ByteBuffer buff) {
+    public boolean process(ByteBuffer buff, String pseudo) {
         if (!rejecting) return false;
         var completed = subProcess(buff.flip());
         buff.compact();
         if (!completed) return true;
         last = 1;
         rejecting = false;
+        onRecover(pseudo);
         return false;
     }
 
@@ -56,11 +60,12 @@ public class RejectReader {
      * @param failure the failure from the other reader. Cannot be null.
      * @param context the context in which we send the error packet. Cannot be null.
      */
-    public void reject(ProcessFailure failure, AbstractContext context) {
+    public void reject(ProcessFailure failure, AbstractContext context, String pseudo) {
         this.rejecting = true;
         switch (failure) {
             case CODE -> context.queueMessage(makeErrorPacket(WRONG_CODE).toBuffer());
             case LENGTH -> context.queueMessage(makeErrorPacket(INVALID_LENGTH).toBuffer());
         }
+        onErrorProcessed(pseudo);
     }
 }

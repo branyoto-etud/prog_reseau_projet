@@ -148,20 +148,6 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
         }
         return length;
     }
-    /**
-     * Displays the packet in the standard output.
-     * @param userName the name of the current user (only used for {@link ErrorCode#AUTH_ERROR})
-     */
-    public void display(String userName) { // Todo : remove from here (not common between Server and client)
-        switch (type) {
-            case ERR -> onErrorReceived(code, pseudo == null ? userName : pseudo);
-            case AUTH -> onAuthSuccess(pseudo);
-            case GMSG -> onGeneralMessageReceived(pseudo, message);
-            case DMSG -> onDirectMessageReceived(pseudo, message);
-            case PC -> onPrivateConnectionReceived(pseudo);
-            case TOKEN -> onTokenReceived(message);
-        }
-    }
 
     /**
      * Creates a buffer representing the packet that is sent according to the protocol CHATOS.

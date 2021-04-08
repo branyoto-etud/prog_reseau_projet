@@ -16,7 +16,6 @@ import static java.util.Objects.requireNonNull;
  *  the name of the received resource. None of the fields can be null.
  */
 public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer content, String resource) {
-    // TODO : add the resource for BAD_RESPONSE
     public static final String OTHER_CONTENT = "application/octet-stream";
     public static final String TEXT_CONTENT = "text/plain";
     public HTTPPacket {

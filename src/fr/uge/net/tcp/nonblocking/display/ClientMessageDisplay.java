@@ -29,7 +29,15 @@ public class ClientMessageDisplay {
     }
     public static void onMessageReceived(Packet packet, String userName) {
         requireNonNull(packet);
-//        packet.display(userName);
+        requireNonNull(userName);
+        switch (packet.type()) {
+            case ERR -> onErrorReceived(packet.code(), packet.pseudo() == null ? userName : packet.pseudo());
+            case AUTH -> onAuthSuccess(packet.pseudo());
+            case GMSG -> onGeneralMessageReceived(packet.pseudo(), packet.message());
+            case DMSG -> onDirectMessageReceived(packet.pseudo(), packet.message());
+            case PC -> onPrivateConnectionReceived(packet.pseudo());
+            case TOKEN -> onTokenReceived(packet.message());
+        }
     }
     public static void onErrorReceived(Packet.ErrorCode code, String pseudo) {
         requireNonNull(pseudo);
@@ -38,7 +46,8 @@ public class ClientMessageDisplay {
         switch (code) {
             case AUTH_ERROR -> onAuthFail(pseudo);
             case DEST_ERROR -> System.out.println("Error : Requested user is not connected to the server!");
-            case REJECTED -> System.out.println("Error : The connection with " + color(pseudo, MAGENTA) + RED + " has been rejected!");
+            case REJECTED -> System.out.println("Error : The connection with " + color(pseudo, MAGENTA) + RED +
+                    " has been rejected!");
             case WRONG_CODE -> System.out.println("Error : The server received a packet with an invalid code!");
             case INVALID_LENGTH -> System.out.println("Error : The server received a packet with an invalid length!");
             case ERROR_RECOVER -> System.out.println("Recover on previous error!");
@@ -48,9 +57,9 @@ public class ClientMessageDisplay {
     public static void onGeneralMessageReceived(String pseudo, String message) {
         requireNonNull(message);
         if (pseudo == null) {
-            System.out.println(color("<me> ", GREEN2) + message);
+            System.out.println(color("<me> ", GREEN1) + message);
         } else {
-            System.out.println(color("<" + pseudo + "> ", GREEN2) + message);
+            System.out.println(color("<" + pseudo + "> ", GREEN1) + message);
         }
     }
     public static void onDirectMessageReceived(String pseudo, String message) {
@@ -61,7 +70,7 @@ public class ClientMessageDisplay {
     public static void onPrivateConnectionReceived(String pseudo) {
         requireNonNull(pseudo);
         System.out.print(color(pseudo + " request a private connection. ", GOLD));
-        System.out.println("Accept ? (" + color("y", GREEN2) + "/" + color("n", RED) + ")");
+        System.out.println("Accept ? (" + color("y", GREEN1) + "/" + color("n", RED) + ")");
     }
     public static void onTokenReceived(String token) {
         System.out.println("The token is : " + color(token, MAGENTA));

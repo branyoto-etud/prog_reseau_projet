@@ -23,6 +23,7 @@ public class AnsiColors {
     public static final String CYAN = fromRGB(0, 255, 255);
     public static final String MAGENTA = fromRGB(255, 0, 255);
     public static final String YELLOW = fromRGB(255, 255, 0);
+    public static final String YELLOW1 = fromRGB(255, 255, 128);
     public static final String GOLD = fromRGB(255, 150, 30);
 
     public static final String RESET = "\u001B[0m";

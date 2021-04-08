@@ -40,7 +40,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
         super(requireNonNull(key));
         this.pseudo = packet.pseudo();
         this.directory = requireNonNull(directory);
-        queue.add(makeTokenPacket(parseInt(packet.message()), packet.pseudo()).toBuffer());
+        queueMessage(makeTokenPacket(parseInt(packet.message()), packet.pseudo()).toBuffer());
     }
 
     /**
@@ -104,7 +104,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
 
     /**
      * Reads data in {@link #bbIn}.
-     * If there's no data to read, {@link #closed} is sets to true.
+     * If there's no data to read, closes the channel.
      *
      * @throws IOException if the connection is closed.
      */

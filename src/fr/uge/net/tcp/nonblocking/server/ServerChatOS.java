@@ -1,5 +1,6 @@
 package fr.uge.net.tcp.nonblocking.server;
 
+import fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay;
 import fr.uge.net.tcp.nonblocking.reader.RejectReader;
 import fr.uge.net.tcp.nonblocking.utils.ChatOSUtils;
 import fr.uge.net.tcp.nonblocking.packet.Packet;
@@ -17,6 +18,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.logging.Logger;
 
+import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onPacketReceived;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.copyBuffer;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
@@ -51,10 +53,10 @@ public class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (rejectReader.process(bbIn)) return;
+            if (rejectReader.process(bbIn, "???")) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
-            if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
+            if (status == ERROR) rejectReader.reject(reader.getFailure(), this, "???");
             if (status == DONE) treatPacket(reader.get());
             reader.reset();
         }
@@ -81,8 +83,8 @@ public class ServerChatOS {
          */
         private void onAuthentication(String pseudo) {
             requireNonNull(pseudo);
-            // Todo : redo display
-            new ServerMessageDisplay("").onAuthPacket((SocketChannel) key.channel(), pseudo);
+
+            ServerMessageDisplay.onAuthPacket((SocketChannel) key.channel(), pseudo);
 
             if (!clients.containsKey(pseudo)) {
                 clients.put(pseudo, new ClientContext(key, pseudo));
@@ -106,8 +108,7 @@ public class ServerChatOS {
          * @param token the private connection's identifier.
          */
         private void onToken(int token) {
-            // Todo : redo display
-            new ServerMessageDisplay("").onTokenPacket((SocketChannel) key.channel(), token);
+            ServerMessageDisplay.onTokenPacket((SocketChannel) key.channel(), token);
             if (privateConnections.containsKey(token)) {
                 privateConnections.get(token).addSelectionKey(key, bbIn);
                 deprecated = true;
@@ -124,7 +125,6 @@ public class ServerChatOS {
         private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
         private final String pseudo;
-        // Todo : redo display
 
         private ClientContext(SelectionKey key, String pseudo){
             super(key);
@@ -139,10 +139,10 @@ public class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (rejectReader.process(bbIn)) return;
+            if (rejectReader.process(bbIn, "pseudo")) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
-            if (status == ERROR) rejectReader.reject(reader.getFailure(), this);
+            if (status == ERROR) rejectReader.reject(reader.getFailure(), this, pseudo);
             if (status == DONE) treatPacket(reader.get());
             reader.reset();
             processIn();
@@ -156,6 +156,7 @@ public class ServerChatOS {
          * @param packet the processed packet.
          */
         private void treatPacket(Packet packet) {
+            onPacketReceived(packet, pseudo);
             switch (packet.type()) {
                 case ERR -> onError(packet);
                 case GMSG -> broadcast(makeGeneralMessagePacket(packet.message(), packet.pseudo()), this);
@@ -297,7 +298,7 @@ public class ServerChatOS {
                 bbIn.clear();
             }
             /**
-             * Copies all data from {@code other} into the {@link #queue}.
+             * Copies all data from {@code other} into the queue.
              * @param other the source buffer.
              */
             private void forwardMessage(ByteBuffer other) {

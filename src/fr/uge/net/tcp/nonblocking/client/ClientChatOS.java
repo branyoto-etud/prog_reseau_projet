@@ -117,11 +117,11 @@ public class ClientChatOS {
                 case AUTH_ERROR, DEST_ERROR -> {}
                 case REJECTED -> pendingConnection.remove(packet.pseudo());
                 case ERROR_RECOVER -> logger.warning("Received ERROR_RECOVER unlikely!");
-                case WRONG_CODE, INVALID_LENGTH -> queue.addFirst(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
+                case WRONG_CODE, INVALID_LENGTH -> insertFirstMessage(makeErrorPacket(Packet.ErrorCode.ERROR_RECOVER).toBuffer());
             }
         }
         /**
-         * Add {@code line} to the end of the {@link #queue} after a treatment.<br>
+         * Add {@code line} to the end of the queue after a treatment.<br>
          * If the client is currently locked by a private connection request, accept only {@code line}
          * that starts with 'n' or 'y'.<br>
          * Otherwise, send the line inside a packet as a general message, a direct message
@@ -139,7 +139,7 @@ public class ClientChatOS {
         }
 
         /**
-         * Add {@code packet} to the end of the {@link #queue} after a conversion to a buffer.
+         * Add {@code packet} to the end of the queue after a conversion to a buffer.
          * @param packet the packet to queue. Cannot be null.
          */
         public void queueMessage(Packet packet) {
@@ -177,7 +177,8 @@ public class ClientChatOS {
         private void parseInput(String line) {
             requireNonNull(line);
             if (!connected) {
-                queueMessage(makeAuthenticationPacket(pseudo = line).toBuffer());
+                pseudo = line;
+                queueMessage(makeAuthenticationPacket(line).toBuffer());
                 return;
             }
             if (line.startsWith("@") && sendDirectMessage(line)) return;
