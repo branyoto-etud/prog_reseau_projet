@@ -74,13 +74,14 @@ public abstract class AbstractContext implements Context {
      *
      * @return the value of the operator assigned to the key.
      */
-    public void updateInterestOps() {
+    public int updateInterestOps() {
         var op = 0;
         if (!closed && bbIn.hasRemaining()) op |= OP_READ;
         if (bbOut.position() != 0)          op |= OP_WRITE;
         if (!connected)                     op  = OP_CONNECT;
         if (op == 0)                        close();
         else                                key.interestOps(op);
+        return op;
     }
     /**
      * Reads data in {@link #bbIn}.
@@ -137,5 +138,9 @@ public abstract class AbstractContext implements Context {
     public void close() {
         silentlyClose(sc);
         connected = false;
+    }
+
+    public void setConnected() {
+        connected = true;
     }
 }

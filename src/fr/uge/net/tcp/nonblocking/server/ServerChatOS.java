@@ -92,11 +92,11 @@ public class ServerChatOS {
         }
 
         @Override
-        public void updateInterestOps() {
-            System.out.println(deprecated);
+        public int updateInterestOps() {
             if (!deprecated) {
-                super.updateInterestOps();
+                return super.updateInterestOps();
             }
+            return 0;
         }
 
         /**
@@ -125,6 +125,7 @@ public class ServerChatOS {
 
         private ClientContext(SelectionKey key, String pseudo){
             super(key);
+            setConnected();
             this.pseudo = pseudo;
             changing.put(key, this);
             queueMessage(makeAuthenticationPacket(pseudo));
@@ -249,6 +250,13 @@ public class ServerChatOS {
             queueMessage(makeTokenPacket(token, other));
             clients.get(other).queueMessage(makeTokenPacket(token, pseudo));
         }
+
+        @Override
+        public int updateInterestOps() {
+            var op = super.updateInterestOps();
+            if (op == 0) clients.remove(pseudo);
+            return op;
+        }
     }
     /**
      * Class for the private connections.
@@ -269,6 +277,7 @@ public class ServerChatOS {
              */
             private PrivateConnectionContext(SelectionKey key, ByteBuffer remaining) {
                 super(key);
+                setConnected();
                 requireNonNull(remaining);
                 changing.put(key, this);
                 key.interestOps(0);
@@ -375,9 +384,7 @@ public class ServerChatOS {
         while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
-                changing.forEach((k,v) -> System.out.println(k + " -- " + v + " -- " + k.attachment()));
                 changing.forEach(SelectionKey::attach);
-                changing.forEach((k,v) -> System.out.println(k + " -- " + v + " -- " + k.attachment()));
                 changing.clear();
             } catch (UncheckedIOException tunneled) {
                 throw tunneled.getCause();
