@@ -36,7 +36,7 @@ public class RejectReader {
     }
 
     /**
-     * Reads byte by byte until two consecutive bytes are equals to {@link #ERR_CODE} and {@link #RECOVER_CODE}.
+     * Reads byte by byte until two consecutive bytes are equal to {@link #ERR_CODE} and {@link #RECOVER_CODE}.
      * @param buff the input data. Must be in read-mode.
      * @return true if the processing found the correct sequence; false otherwise.
      */
@@ -51,7 +51,7 @@ public class RejectReader {
 
     /**
      * Sets the Reader in reject mode.
-     * Also send an error packet to the {@code context} depending on the failure.
+     * Also sends an error packet to the {@code context} depending on the failure.
      *
      * @param failure the failure from the other reader. Cannot be null.
      * @param context the context in which we send the error packet. Cannot be null.
