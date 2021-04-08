@@ -248,7 +248,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * ------------------------------------------------------------- </pre>
      */
     private ByteBuffer generalToBuffer() {
-        return directToBuffer(); // Todo : Replace because it's ugly :sick_face:
+        return twoStringToBuffer();
     }
     /**
      * Creates a buffer containing the packet representing a message destined to only one client.
@@ -262,6 +262,19 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * ------------------------------------------------------------- </pre>
      */
     private ByteBuffer directToBuffer() {
+        return twoStringToBuffer();
+    }
+
+    /**
+     * Creates a buffer containing the packet with a code and two strings.
+     *
+     * <pre>
+     *   byte   integer   string (utf-8)   integer   string (utf-8)
+     * -------------------------------------------------------------
+     * | code | length |     message     | length |     pseudo      |
+     * ------------------------------------------------------------- </pre>
+     */
+    private ByteBuffer twoStringToBuffer() {
         var messageBuffer = UTF_8.encode(message);
         var messageLength = checkLength(messageBuffer.remaining());
         var destBuffer = UTF_8.encode(pseudo);
@@ -273,6 +286,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
                 .putInt(destLength)
                 .put(destBuffer);
     }
+
     /**
      * Creates a buffer containing the packet for a private connection.
      * In the case of a packet sent by the server, the pseudo represents the source
