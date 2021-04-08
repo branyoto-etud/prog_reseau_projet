@@ -235,10 +235,10 @@ public class ClientChatOS {
     private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
     private final HashMap<String, PrivateConnectionContext> privateConnections = new HashMap<>();
     private final HashMap<String, String> pendingConnection = new HashMap<>();
+    private final Thread console = new Thread(this::consoleRun);
     private final InetSocketAddress serverAddress;
     private final Selector selector;
     private MainContext mainContext;
-    private BufferedReader console;
     private final SocketChannel sc;
     private final String directory;
 
@@ -261,11 +261,9 @@ public class ClientChatOS {
      * Read a line and send it to {@link #mainContext}.
      */
     private void consoleRun() {
-        try {
-            console = new BufferedReader(new InputStreamReader(System.in));
-            String line;
-            while ((line = console.readLine()) != null) {
-                sendLine(line);
+        try (var scan = new Scanner(System.in)) {
+            while (scan.hasNextLine()) {
+                sendLine(scan.nextLine());
             }
         } catch (IOException e) {
             logger.severe("An I/O error occurs!");
@@ -328,16 +326,16 @@ public class ClientChatOS {
         key.attach(mainContext = new MainContext(key));
 
         sc.connect(serverAddress);
-        new Thread(this::consoleRun).start();
+        console.start();
 
         while(!Thread.interrupted()) {
             try {
                 selector.select(this::treatKey);
                 processLine();
             } catch (UncheckedIOException tunneled) {
-                console.close();
-                silentlyClose(key.channel());
                 privateConnections.forEach((k, v) -> v.close());
+                silentlyClose(key.channel());
+                console.interrupt();
                 System.exit(-1);
             }
         }
