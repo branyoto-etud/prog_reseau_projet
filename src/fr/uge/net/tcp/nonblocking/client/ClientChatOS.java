@@ -40,6 +40,7 @@ public class ClientChatOS {
          * Processes {@link #bbIn} into the {@link #reader}.
          * If the {@link #reader} has finished, analyses it.
          */
+        @Override
         public void processIn() {
             var status = reader.process(bbIn);
             if (status == REFILL) return;

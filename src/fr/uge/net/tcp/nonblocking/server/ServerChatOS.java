@@ -293,6 +293,7 @@ public class ServerChatOS {
             /**
              * Send all data in {@link #bbIn} to the linked context.
              */
+            @Override
             public void processIn() {
                 linked.forwardMessage(bbIn.flip());
                 bbIn.clear();
@@ -475,6 +476,10 @@ public class ServerChatOS {
      * @return the token computed with the two pseudos.
      */
     public static int computeToken(String c1, String c2) {
+
+
+
+
         return c1.hashCode() + c2.hashCode();
     }
 

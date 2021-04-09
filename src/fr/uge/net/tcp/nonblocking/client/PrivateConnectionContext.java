@@ -49,6 +49,7 @@ class PrivateConnectionContext extends AbstractContext implements Context {
      * <br>
      * This method is recursive and all processIn should be. But not quit sure yet.
      */
+    @Override
     public void processIn() {
         var status = reader.process(bbIn);
         if (status != DONE) return;
