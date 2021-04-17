@@ -85,6 +85,7 @@ public class ServerChatOS {
             ServerMessageDisplay.onAuthPacket((SocketChannel) key.channel(), pseudo);
 
             if (!clients.containsKey(pseudo)) {
+                broadcast(makeGeneralMessagePacket("joined the server.", pseudo), null);
                 clients.put(pseudo, new ClientContext(key, pseudo));
                 deprecated = true;
             } else {
@@ -423,12 +424,13 @@ public class ServerChatOS {
             if (key.isValid() && key.isReadable()) ctx.doRead();
         } catch (IOException e) {
             logger.info("Connection closed with client due to IOException");
-            if (ctx instanceof ClientContext cliCtx)
+            if (ctx instanceof ClientContext cliCtx) {
                 silentlyClose(key.channel(), cliCtx.pseudo);
-            else if (ctx instanceof PrivateConnection.PrivateConnectionContext pcCtx)
+            } else if (ctx instanceof PrivateConnection.PrivateConnectionContext pcCtx) {
                 pcCtx.closeBoth();
-            else if (ctx instanceof ConnectionContext conCtx)
+            } else if (ctx instanceof ConnectionContext conCtx) {
                 conCtx.close();
+            }
         }
     }
 
@@ -451,6 +453,7 @@ public class ServerChatOS {
     /**
      * Closes the connection without crashing if the connection is already closed.
      * Removes the given pseudo from the {@link #clients}.
+     * And send a message to all connecter clients that this client has disconnected.
      * If the pseudo is unknown use {@link ChatOSUtils#silentlyClose(Channel)} instead.
      * @param channel the channel to close. Cannot be null.
      * @param pseudo the pseudo to remove. Cannot be null.
@@ -458,6 +461,7 @@ public class ServerChatOS {
      */
     private void silentlyClose(Channel channel, String pseudo) {
         clients.remove(requireNonNull(pseudo));
+        broadcast(makeGeneralMessagePacket("has disconnected", pseudo), null);
         ChatOSUtils.silentlyClose(channel);
     }
 
