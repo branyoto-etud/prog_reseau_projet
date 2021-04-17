@@ -494,7 +494,14 @@ public class ServerChatOS {
      */
     public int computeToken(String c1, String c2) {
         var key = new TokenKey(c1, c2);
-        return tokenMap.computeIfAbsent(key, tokenKey -> new Random().nextInt());
+        if (!tokenMap.containsKey(key)) {   // Ensure that the token is not already used.
+            int token;
+            do {
+                token = new Random().nextInt();
+            } while (tokenMap.containsValue(token));
+            tokenMap.put(key, token);
+        }
+        return tokenMap.get(key);
     }
 
     public static void main(String[] args) throws NumberFormatException, IOException {
