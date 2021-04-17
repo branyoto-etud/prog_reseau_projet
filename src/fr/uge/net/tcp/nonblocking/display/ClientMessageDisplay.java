@@ -14,14 +14,14 @@ public final class ClientMessageDisplay {
      * Displays that the connection to the server is successful.
      */
     public static void onConnectSuccess() {
-        System.out.println(color("Connected to the server with success.", LIME));
+        System.out.println(color("Connected to the server with success.", fromRGB(50, 250, 0)));
         pseudoAsk();
     }
     /**
      * Displays that the connection to the server has failed.
      */
     public static void onConnectFail() {
-        System.out.println(color("Connection to the server rejected!", RED2));
+        System.out.println(color("Connection to the server rejected!", RED));
     }
     private static void onAuthSuccess(String pseudo) {
         requireNonNull(pseudo);
@@ -30,7 +30,7 @@ public final class ClientMessageDisplay {
     }
     private static void onAuthFail(String pseudo) {
         requireNonNull(pseudo);
-        System.out.println(color("The pseudo : ", RED2) + color(pseudo, YELLOW) + color(" is already taken!", RED2));
+        System.out.println(color("The pseudo : ", RED) + color(pseudo, YELLOW) + color(" is already taken!", RED));
         pseudoAsk();
     }
     private static void pseudoAsk() {
@@ -58,11 +58,11 @@ public final class ClientMessageDisplay {
     private static void onErrorReceived(Packet.ErrorCode code, String pseudo) {
         requireNonNull(pseudo);
         requireNonNull(code);
-        System.out.print(RED2);
+        System.out.print(RED);
         switch (code) {
             case AUTH_ERROR -> onAuthFail(pseudo);
             case DEST_ERROR -> System.out.println("Error : Requested user is not connected to the server!");
-            case REJECTED -> System.out.println("Error : The connection with " + color(pseudo, MAGENTA) + RED2 +
+            case REJECTED -> System.out.println("Error : The connection with " + color(pseudo, MAGENTA) + RED +
                     " has been rejected!");
             case WRONG_CODE -> System.out.println("Error : The server received a packet with an invalid code!");
             case INVALID_LENGTH -> System.out.println("Error : The server received a packet with an invalid length!");
@@ -73,9 +73,9 @@ public final class ClientMessageDisplay {
     private static void onGeneralMessageReceived(String pseudo, String message) {
         requireNonNull(message);
         if (pseudo == null) {
-            System.out.println(color("<me> ", GREEN1) + message);
+            System.out.println(color("<me> ", GREEN) + message);
         } else {
-            System.out.println(color("<" + pseudo + "> ", GREEN1) + message);
+            System.out.println(color("<" + pseudo + "> ", GREEN) + message);
         }
     }
     private static void onDirectMessageReceived(String pseudo, String message) {
@@ -85,8 +85,8 @@ public final class ClientMessageDisplay {
     }
     private static void onPrivateConnectionReceived(String pseudo) {
         requireNonNull(pseudo);
-        System.out.print(color(pseudo + " request a private connection. ", GOLD));
-        System.out.println("Accept ? (" + color("y", GREEN1) + "/" + color("n", RED2) + ")");
+        System.out.print(color(pseudo + " request a private connection. ", fromRGB(255, 150, 30)));
+        System.out.println("Accept ? (" + color("y", GREEN) + "/" + color("n", RED) + ")");
     }
     private static void onTokenReceived(String token) {
         System.out.println("The token is : " + color(token, MAGENTA));

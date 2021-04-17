@@ -1,19 +1,21 @@
 package fr.uge.net.tcp.nonblocking.display;
 
-public class AnsiColors {
-    public static final String RED2 = fromRGB(200, 64, 64);
-    public static final String GREEN = fromRGB(0, 255, 0);
-    public static final String GREEN1 = fromRGB(32, 255, 32);
-
-    public static final String LIME = fromRGB(50, 250, 0);
-    public static final String PURPLE = fromRGB(150, 50, 175);
+/**
+ * Defines some ANSI colors ready to be used in the project.
+ * Also defines methods to color text and to generate colors.
+ */
+public final class AnsiColors {
+    /** Red */
+    public static final String RED = fromRGB(200, 64, 64);
+    /** Green */
+    public static final String GREEN = fromRGB(32, 255, 32);
+    /** Magenta */
     public static final String MAGENTA = fromRGB(230, 75, 240);
-
+    /** Cyan */
     public static final String CYAN = fromRGB(0, 200, 200);
+    /** Yellow */
     public static final String YELLOW = fromRGB(255, 255, 0);
-    public static final String YELLOW1 = fromRGB(255, 255, 128);
-    public static final String GOLD = fromRGB(255, 150, 30);
-
+    /** No color */
     public static final String RESET = "\u001B[0m";
 
     /**

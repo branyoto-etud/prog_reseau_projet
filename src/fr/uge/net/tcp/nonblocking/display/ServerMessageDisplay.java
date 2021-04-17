@@ -41,10 +41,10 @@ public final class ServerMessageDisplay {
         return color(pseudo, CYAN);
     }
     private static String other(String other) {
-        return color(other, PURPLE);
+        return color(other, fromRGB(150, 50, 175));
     }
     private static String message(String msg) {
-        return color(msg, YELLOW1);
+        return color(msg, fromRGB(255, 255, 128));
     }
     private static String sc(SocketChannel sc) {
         try {
@@ -64,9 +64,9 @@ public final class ServerMessageDisplay {
         requireNonNull(pseudo);
         System.out.println(sc(sc) + " trying to authenticate with the pseudo " + other(pseudo));
     }
-    public static void onBadTokenPacket(String pseudo) {
-        System.out.println(color("Received a TOKEN packet from " + me(pseudo), RED2) +
-                           color(" who doesn't represent private connection", RED2));
+    private static void onBadTokenPacket(String pseudo) {
+        System.out.println(color("Received a TOKEN packet from " + me(pseudo), RED) +
+                           color(" who doesn't represent private connection", RED));
     }
 
     /**
@@ -77,7 +77,7 @@ public final class ServerMessageDisplay {
     public static void onTokenPacket(SocketChannel sc, int token) {
         requireNonNull(sc);
         System.out.println("Received a TOKEN packet from " + sc(sc) + " with content " +
-                message("" + token) + " authentication success.");
+                message("" + token) + ", authentication success.");
     }
     private static void onPCPacket(String other, String pseudo) {
         System.out.println("A connection between " + me(pseudo) + " and " + other(other) + " has been received from " + me(pseudo));
@@ -112,8 +112,9 @@ public final class ServerMessageDisplay {
      * @param pseudo the client that has sent an error. Cannot be null.
      */
     public static void onErrorProcessed(String pseudo) {
-        System.out.println(color("Stops accepting data from ",RED2) + me(pseudo) +
-                color(" until reception of ERROR_RECOVER!", RED2));
+        requireNonNull(pseudo);
+        System.out.println(color("Stops accepting data from ", RED) + me(pseudo) +
+                color(" until reception of ERROR_RECOVER!", RED));
     }
 
     /**
@@ -121,6 +122,7 @@ public final class ServerMessageDisplay {
      * @param pseudo the client that recovers. Cannot be null.
      */
     public static void onRecover(String pseudo) {
-        System.out.println(me(pseudo) + color(" recovers from previous error!",GREEN));
+        requireNonNull(pseudo);
+        System.out.println(me(pseudo) + color(" recovers from previous error!",fromRGB(0, 255, 0)));
     }
 }
