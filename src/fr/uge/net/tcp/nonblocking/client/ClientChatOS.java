@@ -23,6 +23,7 @@ import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
 import static java.lang.Integer.parseInt;
+import static java.nio.channels.SelectionKey.OP_WRITE;
 import static java.util.Objects.requireNonNull;
 
 public class ClientChatOS {
@@ -30,10 +31,12 @@ public class ClientChatOS {
         private final PacketReader reader = new PacketReader();
         private boolean connected = false;
         private String requester = null;
+        private final SelectionKey key;
         private String pseudo;
 
         public MainContext(SelectionKey key){
             super(key);
+            this.key = key;
         }
 
         /**
@@ -223,6 +226,19 @@ public class ClientChatOS {
                 queueMessage(makePrivateConnectionPacket(tokens[0]));
             }
             return true;
+        }
+
+        /**
+         * Updates the interest op of the key.
+         * If the client need to accept or reject a private connection, only set it in write mode.
+         *
+         * @return the value of the operator assigned to the key.
+         */
+        @Override
+        public int updateInterestOps() {
+            if (requester == null) return super.updateInterestOps();
+            key.interestOps(OP_WRITE);
+            return OP_WRITE;
         }
 
         /**

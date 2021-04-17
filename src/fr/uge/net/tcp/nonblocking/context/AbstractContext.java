@@ -141,15 +141,15 @@ public abstract class AbstractContext implements Context {
         return connected;
     }
 
+    public void setConnected() {
+        connected = true;
+    }
+
     /**
      * Closes properly the socket.
      */
     public void close() {
         silentlyClose(sc);
         connected = false;
-    }
-
-    public void setConnected() {
-        connected = true;
     }
 }
