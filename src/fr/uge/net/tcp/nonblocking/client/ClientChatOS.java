@@ -26,8 +26,11 @@ import static java.lang.Integer.parseInt;
 import static java.nio.channels.SelectionKey.OP_WRITE;
 import static java.util.Objects.requireNonNull;
 
-public class ClientChatOS {
-    private class MainContext extends AbstractContext implements Context {
+/**
+ * Main class for the client.
+ */
+public final class ClientChatOS {
+    private final class MainContext extends AbstractContext implements Context {
         private final PacketReader reader = new PacketReader();
         private boolean connected = false;
         private String requester = null;
@@ -107,11 +110,11 @@ public class ClientChatOS {
          * On error reception, does an action.
          * <ul>
          *     <li> If the error is {@link Packet.ErrorCode#REJECTED}, removes the request from
-         *     the {@link #pendingConnection}.
+         *     the {@link #pendingConnection}.</li>
          *     <li> If the error is {@link Packet.ErrorCode#WRONG_CODE}
          *     or {@link Packet.ErrorCode#INVALID_LENGTH}, sends an amend packet to let the server
-         *     know that he's not ignoring packets anymore.
-         *     <li> The other errors are only displayed.
+         *     know that he's not ignoring packets anymore.</li>
+         *     <li> The other errors are only displayed.</li>
          * </ul>
          *
          * @param packet the packet that contains the error.
@@ -393,6 +396,14 @@ public class ClientChatOS {
     // Static Methods
     // --------------------------------------------------
 
+    /**
+     * Main method.
+     * Only starts the client if there's 3 arguments.
+     *
+     * @param args the programs arguments.
+     * @throws NumberFormatException if the second argument isn't an integer.
+     * @throws IOException if an I/O error occurs.
+     */
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length!=3) usage();
         else new ClientChatOS(new InetSocketAddress(args[0], parseInt(args[1])), args[2]).launch();

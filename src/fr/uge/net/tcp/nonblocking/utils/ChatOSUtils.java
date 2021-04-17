@@ -6,6 +6,9 @@ import java.nio.channels.Channel;
 
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Utility class that define constants and methods used in the whole project.
+ */
 public class ChatOSUtils {
     /**
      * The maximum size of any text encoded in UTF-8

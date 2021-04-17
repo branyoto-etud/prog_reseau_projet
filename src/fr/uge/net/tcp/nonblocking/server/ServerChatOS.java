@@ -26,13 +26,16 @@ import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.nio.channels.SelectionKey.OP_READ;
 import static java.util.Objects.requireNonNull;
 
-public class ServerChatOS {
+/**
+ * Main class for the server.
+ */
+public final class ServerChatOS {
     /**
      * Class for the initial connections.
      * After an authentication packet or a token packet arrived, this context will be deleted
      * and replaced by respectively {@link ConnectionContext} and {@link PrivateConnection.PrivateConnectionContext}.
      */
-    private class ConnectionContext extends AbstractContext implements Context {
+    private final class ConnectionContext extends AbstractContext implements Context {
         private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
         private boolean deprecated = false;
@@ -120,7 +123,7 @@ public class ServerChatOS {
      * Class for all the "normal" clients (i.e. not the private connections)
      * Handle the receiving and sending of GMSG, DMSG, PC and ERROR.
      */
-    private class ClientContext extends AbstractContext implements Context {
+    private final class ClientContext extends AbstractContext implements Context {
         private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
         private final String pseudo;
@@ -273,8 +276,8 @@ public class ServerChatOS {
      * {@link #addSelectionKey(SelectionKey, ByteBuffer)}. After that all bytes read from one connection
      * will be sent to the other and vice-versa.
      */
-    private class PrivateConnection {
-        private class PrivateConnectionContext extends AbstractContext implements Context {
+    private final class PrivateConnection {
+        private final class PrivateConnectionContext extends AbstractContext implements Context {
             private PrivateConnectionContext linked;
 
             /**
@@ -363,7 +366,10 @@ public class ServerChatOS {
         }
     }
 
-    public static record TokenKey(String k1, String k2) {}
+    /**
+     * Just a tuple of string.
+     */
+    private static record TokenKey(String k1, String k2) {}
 
     private static final Logger logger = Logger.getLogger(ServerChatOS.class.getName());
 
@@ -504,6 +510,14 @@ public class ServerChatOS {
         return tokenMap.get(key);
     }
 
+    /**
+     * Main method.
+     * Only starts the server if there's 1 arguments.
+     *
+     * @param args the programs arguments.
+     * @throws NumberFormatException if the first argument isn't an integer.
+     * @throws IOException if an I/O error occurs.
+     */
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length != 1) {
             usage();
@@ -511,7 +525,7 @@ public class ServerChatOS {
             new ServerChatOS(Integer.parseInt(args[0])).launch();
         }
     }
-    public static void usage() {
+    private static void usage() {
         System.out.println("Usage : ServerChatOS port");
     }
 }

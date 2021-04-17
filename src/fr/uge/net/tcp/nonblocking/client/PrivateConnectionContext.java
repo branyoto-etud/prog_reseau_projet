@@ -26,7 +26,11 @@ import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
-class PrivateConnectionContext extends AbstractContext implements Context {
+/**
+ * Represents a client private connection.
+ * Should only be used by {@link ClientChatOS}.
+ */
+final class PrivateConnectionContext extends AbstractContext implements Context {
     private final HTTPReader reader = new HTTPReader();
     private final String directory;
     private final String pseudo;

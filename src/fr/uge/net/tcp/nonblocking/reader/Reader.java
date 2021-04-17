@@ -22,9 +22,32 @@ import java.nio.ByteBuffer;
  * @param <T> the type of the element this reader take care of.
  */
 public interface Reader<T> {
-    enum ProcessStatus {DONE,REFILL,ERROR}
+    /**
+     * Current state of the reader.
+     */
+    enum ProcessStatus {
+        /** Data are ready to be read */
+        DONE,
+        /** Need to process data again before Done */
+        REFILL,
+        /** If an error occurs during processing */
+        ERROR
+    }
 
+    /**
+     * Processes data from the buffer to create an object.
+     * @param bb the buffer where to read data. Must be in write-mode.
+     * @return the current state of the reader.
+     */
     ProcessStatus process(ByteBuffer bb);
+
+    /**
+     * @return the processed element.
+     */
     T get();
+
+    /**
+     * Reset the reader in it's initial state. Ready to read new data.
+     */
     void reset();
 }

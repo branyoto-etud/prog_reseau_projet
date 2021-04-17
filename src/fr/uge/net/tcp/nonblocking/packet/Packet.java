@@ -12,15 +12,15 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * The other fields can be null if not useful with this type. The following list explains
  * what are the different types and which fields they use.
  * <ul>
- * <li> {@link PacketType#ERR} (code and pseudo) : This packet notifies an incorrect behavior.
+ * <li> {@link PacketType#ERR} (code and pseudo) : This packet notifies an incorrect behavior.</li>
  * <li> {@link PacketType#AUTH} (pseudo) : This packet is used by the client to register to the server. The pseudo
- * is the unique identifier for this client.
- * <li> {@link PacketType#GMSG} (message and pseudo) : This packet is a General Message. A message from a client to everyone.
- * <li> {@link PacketType#DMSG} (message and pseudo) : This packet is a Direct Message. A message from a client to another.
+ * is the unique identifier for this client.</li>
+ * <li> {@link PacketType#GMSG} (message and pseudo) : This packet is a General Message. A message from a client to everyone.</li>
+ * <li> {@link PacketType#DMSG} (message and pseudo) : This packet is a Direct Message. A message from a client to another.</li>
  * <li> {@link PacketType#PC} (pseudo) : This packet is Private Connection. It is used to establish a connection between
- * two clients.
+ * two clients.</li>
  * <li> {@link PacketType#TOKEN} (message, pseudo) : This packet is a special packet used to register to the server as a private
- * connection. The token is an unique identifier sent to the both ends of a private connection.
+ * connection. The token is an unique identifier sent to the both ends of a private connection.</li>
  * </ul>
  * For more explanations, see Protocol.txt.
  */
@@ -29,7 +29,7 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
      * Utility class made to create {@link Packet} more easily.
      * If one of the parameter is null, the returned packet will be null.
      */
-    public static class PacketBuilder {
+    public final static class PacketBuilder {
         /**
          * Creates an error packet with the given error code.
          * @param code the error code.
@@ -114,26 +114,38 @@ public final record Packet(PacketType type, ErrorCode code, String message, Stri
     }
     /**
      * Types of the different packets.
-     * <ul>
-     *     <li> {@link PacketType#ERR} : Error code
-     *     <li> {@link PacketType#AUTH} : Authentication
-     *     <li> {@link PacketType#GMSG} : General Message
-     *     <li> {@link PacketType#DMSG} : Direct Message
-     *     <li> {@link PacketType#PC} : Private Connection
-     *     <li> {@link PacketType#TOKEN} : Token
      */
-    public enum PacketType {ERR, AUTH, GMSG, DMSG, PC, TOKEN}
+    public enum PacketType {
+        /** Error code */
+        ERR,
+        /** Authentication */
+        AUTH,
+        /** General Message */
+        GMSG,
+        /** Direct Message */
+        DMSG,
+        /** Private Connection */
+        PC,
+        /** Token */
+        TOKEN
+    }
     /**
      * Possible error codes.
-     * <ul>
-     *     <li>{@link ErrorCode#AUTH_ERROR} : Authentication error. If the requested pseudo is already taken.
-     *     <li>{@link ErrorCode#DEST_ERROR} : Destination error. If the destination is not connected to the server.
-     *     <li>{@link ErrorCode#REJECTED} : Private Connection Rejected. If the private connection is rejected by the other client.
-     *     <li>{@link ErrorCode#WRONG_CODE} : Wrong Code. If the code ({@link PacketType} or {@link ErrorCode} is invalid.
-     *     <li>{@link ErrorCode#INVALID_LENGTH} : Invalid text length. If the length of a text is negative, 0 or greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
-     *     <li>{@link ErrorCode#ERROR_RECOVER} : Recovering of an error. If the client tries to recover from an error he made.
      */
-    public enum ErrorCode {AUTH_ERROR, DEST_ERROR, REJECTED, WRONG_CODE, INVALID_LENGTH, ERROR_RECOVER}
+    public enum ErrorCode {
+        /** Authentication error. If the requested pseudo is already taken. */
+        AUTH_ERROR,
+        /** Destination error. If the destination is not connected to the server. */
+        DEST_ERROR,
+        /** Private Connection Rejected. If the private connection is rejected by the other client. */
+        REJECTED,
+        /** Wrong Code. If the code ({@link PacketType} or {@link ErrorCode} is invalid. */
+        WRONG_CODE,
+        /** Invalid text length. If the length of a text is negative, 0 or greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}. */
+        INVALID_LENGTH,
+        /** Recovering of an error. If the client tries to recover from an error he made. */
+        ERROR_RECOVER
+    }
 
     /**
      * Check if {@code length} is not greater than {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.

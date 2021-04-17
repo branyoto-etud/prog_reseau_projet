@@ -11,6 +11,9 @@ import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeErrorPacket;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.ERR;
 
+/**
+ * Reader used to ignore all bytes until the reading ofthe byte {@link #ERR_CODE} followed by {@link #RECOVER_CODE}.
+ */
 public class RejectReader {
     private static final int ERR_CODE = ERR.ordinal();
     private static final int RECOVER_CODE = ERROR_RECOVER.ordinal();

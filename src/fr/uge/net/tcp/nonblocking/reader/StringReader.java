@@ -54,13 +54,12 @@ public class StringReader implements Reader<String> {
      * and the message (encoded in UTF-8).
      * This method remembers what has been processed beforehand.
      * The returned value can be :
-     * <ul><li>   {@link ProcessStatus#REFILL} :
-     *     if the reader has not finished.
-     * <li>   {@link ProcessStatus#ERROR} :
-     *     if the length of the message is not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.
-     * <li>   {@link ProcessStatus#DONE} :
-     *     if the message is ready to be get.
-     *
+     * <ul>
+     *   <li> {@link ProcessStatus#REFILL} : if the reader has not finished.</li>
+     *   <li> {@link ProcessStatus#ERROR} :
+     *     if the length of the message is not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}.</li>
+     *   <li> {@link ProcessStatus#DONE} : if the message is ready to be get.</li>
+     * </ul>
      * @param bb the buffer where to read the data.
      *           Must be in write-mode before being called and will be kept in write-mode after.
      * @return the current state of the reader.

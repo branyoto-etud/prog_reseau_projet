@@ -11,6 +11,9 @@ import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.*;
 import static java.lang.Integer.parseInt;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Reader used to read an {@link HTTPPacket} that can either be a request or a response.
+ */
 public class HTTPReader implements Reader<HTTPPacket> {
     private final HTTPLineReader reader = new HTTPLineReader();
     private String contentType = OTHER_CONTENT;
@@ -94,11 +97,11 @@ public class HTTPReader implements Reader<HTTPPacket> {
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the line starts with "GET" (i.e. a request).
+     *     if the line starts with "GET" (i.e. a request).</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
-     *     if the line starts with "HTTP/1.1".
+     *     if the line starts with "HTTP/1.1".</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
-     *     if the line doesn't starts with "HTTP/1.1" nor "GET".
+     *     if the line doesn't starts with "HTTP/1.1" nor "GET".</li>
      * </ul>
      *
      * @param line the line to process.
@@ -143,20 +146,20 @@ public class HTTPReader implements Reader<HTTPPacket> {
     /**
      * Processes the line extracted from a header and depending on the start of the string do an action.
      * <ul>
-     *     <li> If the line starts with "Content-Type:" fill {@link #contentType}.
-     *     <li> If the line starts with "Resource:" fill {@link #resource}.
+     *     <li> If the line starts with "Content-Type:" fill {@link #contentType}.</li>
+     *     <li> If the line starts with "Resource:" fill {@link #resource}.</li>
      *     <li> If the line starts with "Content-Length:" assign {@link #buff}
-     *     with a new buffer with the found length.
+     *     with a new buffer with the found length.</li>
      * </ul>
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the line is blank.
+     *     if the line is blank.</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
-     *     if the line starts with "Content-Length:" but the content is incorrect
+     *     if the line starts with "Content-Length:" but the content is incorrect</li>
      *     (i.e. negative or above {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#CONTENT_MAX_SIZE}).
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
-     *     In any other case (even when the processing of the line has done something).
+     *     In any other case (even when the processing of the line has done something).</li>
      * </ul>
      *
      * @param line the line to process.

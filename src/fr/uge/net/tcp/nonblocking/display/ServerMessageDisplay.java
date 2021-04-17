@@ -6,9 +6,20 @@ import java.io.IOException;
 import java.nio.channels.SocketChannel;
 
 import static fr.uge.net.tcp.nonblocking.display.AnsiColors.*;
+import static java.util.Objects.requireNonNull;
 
-public class ServerMessageDisplay {
+/**
+ * Display class (only used by the server).
+ */
+public final class ServerMessageDisplay {
+    /**
+     * Displays a paquet received by the sever.
+     * @param p the paquet to display. Cannot be null.
+     * @param pseudo the pseudo of the sender. Cannot be null.
+     */
     public static void onPacketReceived(Packet p, String pseudo) {
+        requireNonNull(p);
+        requireNonNull(pseudo);
         switch (p.type()) {
             case ERR -> {
                 switch (p.code()) {
@@ -43,48 +54,72 @@ public class ServerMessageDisplay {
         }
     }
 
-    public static void onAuthPacket(SocketChannel sc, String other) {
-        System.out.println(sc(sc) + " trying to authenticate with the pseudo " + other(other));
+    /**
+     * Displays an attempt to authenticate with a pseudo.
+     * @param sc the socket that tries to authenticate. Cannot be null.
+     * @param pseudo the pseudo he wanted to have. Cannot be null.
+     */
+    public static void onAuthPacket(SocketChannel sc, String pseudo) {
+        requireNonNull(sc);
+        requireNonNull(pseudo);
+        System.out.println(sc(sc) + " trying to authenticate with the pseudo " + other(pseudo));
     }
     public static void onBadTokenPacket(String pseudo) {
         System.out.println(color("Received a TOKEN packet from " + me(pseudo), RED2) +
                            color(" who doesn't represent private connection", RED2));
     }
+
+    /**
+     * Displays a TOKEN packet received from a client not already authenticated.
+     * @param sc the socket of the sender. Cannot be null.
+     * @param token the token he identifies with.
+     */
     public static void onTokenPacket(SocketChannel sc, int token) {
+        requireNonNull(sc);
         System.out.println("Received a TOKEN packet from " + sc(sc) + " with content " +
                 message("" + token) + " authentication success.");
     }
-    public static void onPCPacket(String other, String pseudo) {
+    private static void onPCPacket(String other, String pseudo) {
         System.out.println("A connection between " + me(pseudo) + " and " + other(other) + " has been received from " + me(pseudo));
     }
-    public static void onDMSGPacket(String msg, String other, String pseudo) {
+    private static void onDMSGPacket(String msg, String other, String pseudo) {
         System.out.println(me(pseudo) + " sending a direct message containing " + message(msg) + " to " + other(other));
     }
-    public static void onGMSGPacket(String msg, String pseudo) {
+    private static void onGMSGPacket(String msg, String pseudo) {
         System.out.println(me(pseudo) + " sent " + message(msg) + " to everyone");
     }
-    public static void onBadAuthPacket(String pseudo) {
-        System.out.println(color("Received an AUTH packet from ", RED2) + me(pseudo) +
-                color(" but already identified with the pseudo: ", RED2) + other(pseudo));
+    private static void onBadAuthPacket(String pseudo) {
+        System.out.println(color("Received an AUTH packet from ", RED) + me(pseudo) +
+                color(" but already identified with the pseudo: ", RED) + other(pseudo));
     }
-    public static void onRejectError(String other, String pseudo) {
-        System.out.println(me(pseudo) + color(" reject private connection from ", RED2) + other(other));
+    private static void onRejectError(String other, String pseudo) {
+        System.out.println(me(pseudo) + color(" reject private connection from ", RED) + other(other));
     }
-    public static void onBadRecoverError(String pseudo) {
-        System.out.println(color("Received a RECOVER packet from ", RED2) + me(pseudo) +
-                color(" while not being rejecting!", RED2));
+    private static void onBadRecoverError(String pseudo) {
+        System.out.println(color("Received a RECOVER packet from ", RED) + me(pseudo) +
+                color(" while not being rejecting!", RED));
     }
-    public static void onServerInternalError(String pseudo) {
-        System.out.println(color("Error : Server sent an invalid packet to ", RED2) + me(pseudo));
+    private static void onServerInternalError(String pseudo) {
+        System.out.println(color("Error : Server sent an invalid packet to ", RED) + me(pseudo));
     }
-    public static void onBadError(Packet.ErrorCode code) {
-        System.out.println(color("Receive unwanted error packet: ", RED2) +
+    private static void onBadError(Packet.ErrorCode code) {
+        System.out.println(color("Receive unwanted error packet: ", RED) +
                 color(code.toString(), MAGENTA));
     }
+
+    /**
+     * Displays the interruption of the reading for this client until reception of ERROR_RECOVER.
+     * @param pseudo the client that has sent an error. Cannot be null.
+     */
     public static void onErrorProcessed(String pseudo) {
         System.out.println(color("Stops accepting data from ",RED2) + me(pseudo) +
                 color(" until reception of ERROR_RECOVER!", RED2));
     }
+
+    /**
+     * Displays the restart of the reading process.
+     * @param pseudo the client that recovers. Cannot be null.
+     */
     public static void onRecover(String pseudo) {
         System.out.println(me(pseudo) + color(" recovers from previous error!",GREEN));
     }

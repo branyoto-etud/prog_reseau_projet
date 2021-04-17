@@ -13,7 +13,7 @@ import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectF
 import static java.nio.channels.SelectionKey.*;
 
 /**
- * Abstract context are used to group all common methods among all implementations of {@link Context}.
+ * Abstract context that is used to group all common methods among all implementations of {@link Context}.
  */
 public abstract class AbstractContext implements Context {
     /**
@@ -76,8 +76,8 @@ public abstract class AbstractContext implements Context {
      * {@link #bbIn} and {@link #bbOut}.
      * The operators will be set to:
      * <ul>
-     *     <li> {@link SelectionKey#OP_READ} if the channel isn't closed and there's space left in {@link #bbIn}.
-     *     <li> {@link SelectionKey#OP_WRITE} if {@link #bbOut} has something to write.
+     *     <li> {@link SelectionKey#OP_READ} if the channel isn't closed and there's space left in {@link #bbIn}.</li>
+     *     <li> {@link SelectionKey#OP_WRITE} if {@link #bbOut} has something to write.</li>
      * </ul>
      * The operators can be cumulated. If none of the above conditions are met, the channel is closed.
      *
@@ -141,6 +141,9 @@ public abstract class AbstractContext implements Context {
         return connected;
     }
 
+    /**
+     * Force the context to consider itself connected even if it's not supposed to.
+     */
     public void setConnected() {
         connected = true;
     }

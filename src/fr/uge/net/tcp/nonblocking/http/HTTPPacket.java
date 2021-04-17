@@ -9,15 +9,30 @@ import static java.util.Objects.requireNonNull;
 /**
  * {@link #type} : type (not null) of the packet that can be either:
  * <ul>
- *  <li> {@link HTTPPacketType#REQUEST} -> in this case every fields are null except {@link #resource} which is the request.
- *  <li> {@link HTTPPacketType#BAD_RESPONSE} -> in this case every fields are null except {@link #resource} that can be not null.
+ *  <li> {@link HTTPPacketType#REQUEST} -> in this case every fields are null except {@link #resource} which is the request.</li>
+ *  <li> {@link HTTPPacketType#BAD_RESPONSE} -> in this case every fields are null except {@link #resource}.</li>
  *  <li> {@link HTTPPacketType#GOOD_RESPONSE} -> in this case {@link #contentType} contains the type of the content and
  *  {@link #content} contains the content of the HTTP response (the buffer is in read-mode) and {@link #resource} contains
- *  the name of the received resource. None of the fields can be null.
+ *  the name of the received resource. None of the fields can be null.</li>
+ * </ul>
  */
 public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer content, String resource) {
+    /**
+     * The type used to represent all other type of content.
+     */
     public static final String OTHER_CONTENT = "application/octet-stream";
+    /**
+     * The type used to represent text content.
+     */
     public static final String TEXT_CONTENT = "text/plain";
+
+    /**
+     * Construct an HTTPPacket.
+     * @param type the type of the packet. Cannot be null.
+     * @param contentType the type of the content this packet contains.
+     * @param content the content of this http packet.
+     * @param resource the requested resource.
+     */
     public HTTPPacket {
         requireNonNull(type);
         switch (type) {
@@ -33,7 +48,14 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     /**
      * Type of the HTTPPacket.
      */
-    public enum HTTPPacketType {REQUEST, GOOD_RESPONSE, BAD_RESPONSE}
+    public enum HTTPPacketType {
+        /** If the Packet is a request*/
+        REQUEST,
+        /** If the packet is a correct response */
+        GOOD_RESPONSE,
+        /** If the packet is an incorrect response */
+        BAD_RESPONSE
+    }
 
 
     // ------------------------------------------------

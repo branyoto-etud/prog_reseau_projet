@@ -16,11 +16,20 @@ import static fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure.LENG
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Reader used to read a {@link Packet}.
+ * For more informations, read Protocol.txt.
+ */
 public class PacketReader implements Reader<Packet> {
     /**
      * Type of failure that can appear.
      */
-    public enum ProcessFailure {CODE, LENGTH}
+    public enum ProcessFailure {
+        /** If the read code is incorrect. */
+        CODE,
+        /** If the read length is incorrect. (not between 1 and {@link fr.uge.net.tcp.nonblocking.utils.ChatOSUtils#TEXT_SIZE}) */
+        LENGTH
+    }
     // Always in write-mode.
     private final ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
     private final StringReader reader = new StringReader();
@@ -117,13 +126,13 @@ public class PacketReader implements Reader<Packet> {
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the reader has finished reading.
+     *     if the reader has finished reading.</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
      *     if {@code bb} is empty or if the code is {@link Packet.ErrorCode#REJECTED} and
-     *     the int or the string cannot be read.
+     *     the int or the string cannot be read.</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
      *     if the error code read is invalid (sets {@link #failure} to {@link ProcessFailure#CODE}).
-     *     Or if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).
+     *     Or if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).</li>
      * </ul>
      *
      * @param bb buffer in write-mode.
@@ -151,11 +160,11 @@ public class PacketReader implements Reader<Packet> {
      * The returned value can be:
      * <ul>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#DONE} :
-     *     if the reader has finished reading.
+     *     if the reader has finished reading.</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#REFILL} :
-     *     if {@code bb} has less than an integer or if the int or the string cannot be read.
+     *     if {@code bb} has less than an integer or if the int or the string cannot be read.</li>
      *     <li> {@link fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus#ERROR} :
-     *     if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).
+     *     if the length of the string is beyond limit (sets {@link #failure} to {@link ProcessFailure#LENGTH}).</li>
      * </ul>
      * @param bb buffer in write-mode.
      * @return the current status of the reader.

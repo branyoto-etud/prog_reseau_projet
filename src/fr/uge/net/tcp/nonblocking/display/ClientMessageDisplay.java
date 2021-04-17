@@ -5,15 +5,25 @@ import fr.uge.net.tcp.nonblocking.packet.Packet;
 import static fr.uge.net.tcp.nonblocking.display.AnsiColors.*;
 import static java.util.Objects.requireNonNull;
 
-public class ClientMessageDisplay {
+
+/**
+ * Display class (only used by the client).
+ */
+public final class ClientMessageDisplay {
+    /**
+     * Displays that the connection to the server is successful.
+     */
     public static void onConnectSuccess() {
         System.out.println(color("Connected to the server with success.", LIME));
         pseudoAsk();
     }
+    /**
+     * Displays that the connection to the server has failed.
+     */
     public static void onConnectFail() {
         System.out.println(color("Connection to the server rejected!", RED2));
     }
-    public static void onAuthSuccess(String pseudo) {
+    private static void onAuthSuccess(String pseudo) {
         requireNonNull(pseudo);
         System.out.print("Successfully authenticate to the server with the pseudo: ");
         System.out.println(color(pseudo, YELLOW) + ".");
@@ -27,6 +37,12 @@ public class ClientMessageDisplay {
         System.out.print("Enter your pseudo to authentication : ");
         System.out.flush();
     }
+
+    /**
+     * Displays a packet received from the server.
+     * @param packet the packet to display. Cannot be null.
+     * @param userName the pseudo of the client. Cannot be null.
+     */
     public static void onMessageReceived(Packet packet, String userName) {
         requireNonNull(packet);
         requireNonNull(userName);
@@ -39,7 +55,7 @@ public class ClientMessageDisplay {
             case TOKEN -> onTokenReceived(packet.message());
         }
     }
-    public static void onErrorReceived(Packet.ErrorCode code, String pseudo) {
+    private static void onErrorReceived(Packet.ErrorCode code, String pseudo) {
         requireNonNull(pseudo);
         requireNonNull(code);
         System.out.print(RED2);
@@ -54,7 +70,7 @@ public class ClientMessageDisplay {
         }
         System.out.print(RESET);
     }
-    public static void onGeneralMessageReceived(String pseudo, String message) {
+    private static void onGeneralMessageReceived(String pseudo, String message) {
         requireNonNull(message);
         if (pseudo == null) {
             System.out.println(color("<me> ", GREEN1) + message);
@@ -62,17 +78,17 @@ public class ClientMessageDisplay {
             System.out.println(color("<" + pseudo + "> ", GREEN1) + message);
         }
     }
-    public static void onDirectMessageReceived(String pseudo, String message) {
+    private static void onDirectMessageReceived(String pseudo, String message) {
         requireNonNull(pseudo);
         requireNonNull(message);
         System.out.println(color("[" + pseudo + "] ", CYAN) + message);
     }
-    public static void onPrivateConnectionReceived(String pseudo) {
+    private static void onPrivateConnectionReceived(String pseudo) {
         requireNonNull(pseudo);
         System.out.print(color(pseudo + " request a private connection. ", GOLD));
         System.out.println("Accept ? (" + color("y", GREEN1) + "/" + color("n", RED2) + ")");
     }
-    public static void onTokenReceived(String token) {
+    private static void onTokenReceived(String token) {
         System.out.println("The token is : " + color(token, MAGENTA));
     }
 }

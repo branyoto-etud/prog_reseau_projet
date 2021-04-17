@@ -10,6 +10,9 @@ import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.BUFFER_MAX_SIZE;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static java.util.Objects.requireNonNull;
 
+/**
+ * Reader used to read an HTTP line (i.e. all bytes until {@link #CR}{@link #LF} is read).
+ */
 public class HTTPLineReader implements Reader<String> {
     private static final byte CR = '\015';     // ASCII code for \r
     private static final byte LF = '\012';     // ASCII code for \n
@@ -23,11 +26,11 @@ public class HTTPLineReader implements Reader<String> {
      * Processes the buffer and extracts data until the end of a line ({@link #CR}{@link #LF}).
      * This method remembers what has been processed beforehand.
      * The returned value can be :
-     * <ul><li>   {@link ProcessStatus#REFILL} :
-     *     if the reader has not finished.
-     * <li>   {@link ProcessStatus#ERROR} : never!
-     * <li>   {@link ProcessStatus#DONE} :
-     *     if the message is ready to be get.
+     * <ul>
+     *   <li>   {@link ProcessStatus#REFILL} : if the reader has not finished.</li>
+     *   <li>   {@link ProcessStatus#ERROR} : never!</li>
+     *   <li>   {@link ProcessStatus#DONE} : if the message is ready to be get.</li>
+     * </ul>
      *
      * @param bb the buffer where to read the data.
      *           Must be in write-mode before being called and will be kept in write-mode after.
