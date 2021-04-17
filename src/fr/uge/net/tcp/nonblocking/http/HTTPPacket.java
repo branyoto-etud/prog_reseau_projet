@@ -36,7 +36,7 @@ public record HTTPPacket(HTTPPacketType type, String contentType, ByteBuffer con
     public HTTPPacket {
         requireNonNull(type);
         switch (type) {
-            case REQUEST -> requireNonNull(resource);
+            case REQUEST, BAD_RESPONSE -> requireNonNull(resource);
             case GOOD_RESPONSE -> {
                 requireNonNull(contentType);
                 requireNonNull(resource);
