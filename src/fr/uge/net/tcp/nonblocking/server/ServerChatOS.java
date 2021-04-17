@@ -13,9 +13,7 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onPacketReceived;
@@ -335,6 +333,11 @@ public class ServerChatOS {
             contexts.get(0).close();
             contexts.get(1).close();
             privateConnections.remove(token);
+            for (var e : tokenList.entrySet()) {
+                if (e.getValue() == token) {
+                    tokenList.remove(e.getKey());
+                }
+            }
         }
 
         /**
@@ -357,11 +360,14 @@ public class ServerChatOS {
         }
     }
 
+    public static record TokenKey(String k1, String k2) {}
+
     private static final Logger logger = Logger.getLogger(ServerChatOS.class.getName());
 
     private final HashMap<Integer, PrivateConnection> privateConnections = new HashMap<>();
     private final HashMap<SelectionKey, Context> changing = new HashMap<>();
     private final HashMap<String, ClientContext> clients = new HashMap<>();
+    private final HashMap<TokenKey, Integer> tokenList = new HashMap<>();
     private final HashSet<Integer> pendingPC = new HashSet<>();
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
@@ -475,12 +481,9 @@ public class ServerChatOS {
      * @param c2 the second pseudo. Cannot be null.
      * @return the token computed with the two pseudos.
      */
-    public static int computeToken(String c1, String c2) {
-
-
-
-
-        return c1.hashCode() + c2.hashCode();
+    public int computeToken(String c1, String c2) {
+        var key = c1.compareTo(c2) > 0 ? new TokenKey(c1, c2) : new TokenKey(c2, c1);
+        return tokenList.computeIfAbsent(key, tokenKey -> new Random().nextInt());
     }
 
     public static void main(String[] args) throws NumberFormatException, IOException {
