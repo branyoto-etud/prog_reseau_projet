@@ -1,14 +1,43 @@
-### Syntax
+## Présentation
 
-- Global message : one line
-- Direct message : @pseudo message
-- Private connection : /pseudo file
+Ce projet permet à des clients de discuter entre eux via un serveur.
+Il est livré avec 2 Jars executables : un pour le serveur et un pour le client.
 
-Escape char '@' and '/' if first char
-\/pseudo  <=>  send a global message with the content '/pseudo'
-Same with @
+Pour utiliser correctement le projet il faut premièrement démarrer 
+le serveur en précisant le port d'écoute sur lequel il sera démarré :  
+`java -jar ServerChatOS.jar 7777`
+Par la suite, vous pourrez démarrer autant de client que vous souhaitez
+en indiquant l'adresse du serveur, son port d'écoute ainsi que le dossier 
+dans lequel vous voulez que le client "vive" :  
+`java -jar ClientChatOS.jar localhost 7777 dossier`
 
-### Disclaimer 
-The only file that is ensured to be up to date is the Protocole.txt.
+
+
+
+
+
+---
+## Lancement
+
+
+
+
+---
+## Tests poussé
+
+
+
+
+## Localisation des parties
+
+
+
+
+
+
+
+
+
+
 
 
