@@ -108,11 +108,11 @@ Le serveur garde en mémoire les clients connecté, les connexions privées en c
 Les paquets (`Packet`) sont le moyen de communication principal utilisé par ce projet.
 (principale et non unique puisque les connexions privées ne l'utilisent pas)
 Il existe 6 paquets différents (et 11 si on considère les erreurs comme des paquets et non des sous-paquets).
-Pour plus d'information sur les paquets et leur utilité, se référer à la [RFC](Protocol.txt).
+Pour plus d'information sur les paquets et leur utilité, se référer à la [RFC](docs/Protocol.txt).
 
 ### Les paquets HTTP
 
-Comme précisé au-dessus, il existe aussi des paquets n'étant pas définis dans la [RFC](Protocol.txt).
+Comme précisé au-dessus, il existe aussi des paquets n'étant pas définis dans la [RFC](docs/Protocol.txt).
 Ce sont les paquets HTTP (`HTTPPacket`) échangé par les connexions privées.
  
 ### Reader
@@ -125,7 +125,7 @@ Il existe 4 lecteurs : (tous implémentant l'interface `Reader`)
   représentant une longueur puis une chaine de caractères encodée en UTF-8 ayant 
   la longueur lue précédemment.
 - Un lecteur de paquet (`PacketReader`) qui lit un paquet. Donc un octet et en fonction de la valeur
-  de cet octet lit différentes choses. (Pour plus de détail lire l'annexe de la [RFC](Protocol.txt)).
+  de cet octet lit différentes choses. (Pour plus de détail lire l'annexe de la [RFC](docs/Protocol.txt)).
 - Un lecteur de ligne HTTP (`HTTPLineReader`) qui lit des octets jusqu'à lire `\r\n` (qui indique une fin de ligne en HTTP).
 - Un lecteur de paquet HTTP (`HTTPReader`) qui lit un message HTTP pouvant être une requête ou une réponse.
 
