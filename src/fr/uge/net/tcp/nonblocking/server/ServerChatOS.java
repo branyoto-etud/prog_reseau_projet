@@ -174,9 +174,9 @@ public class ServerChatOS {
          */
         private void onError(Packet packet) {
             if (packet.code() != REJECTED) return;
-            var token = computeToken(pseudo, packet.pseudo());
-            if (!pendingPC.contains(token)) return;
-            pendingPC.remove(token);
+            var token = computeToken(packet.pseudo(), pseudo);
+            if (!pendingPrivateConnections.contains(token)) return;
+            pendingPrivateConnections.remove(token);
             if (!clients.containsKey(packet.pseudo())) return;
             clients.get(packet.pseudo()).queueMessage(makeRejectedPacket(pseudo));
         }
@@ -215,13 +215,17 @@ public class ServerChatOS {
                 queueMessage(makeErrorPacket(DEST_ERROR));
                 return;
             }
-            var token = computeToken(pseudo, packet.pseudo());
-            if (pendingPC.contains(token)) {
-                onPrivateConnectionAccept(token, packet.pseudo());
-            } else if (!privateConnections.containsKey(token)) {
-                onPrivateConnectionRequest(token, packet.pseudo());
-            } else {
+            var tokenAB = computeToken(pseudo, packet.pseudo());
+            var tokenBA = computeToken(packet.pseudo(), pseudo);
+            if (privateConnections.containsKey(tokenAB)) { // implique que la connection existe déjà
+                // Ignore car déjà connecté
                 System.out.println("Already connected!");
+            } else if (pendingPrivateConnections.contains(tokenBA)) { // implique que BA avait demandé une connection
+                // Accepte la connection
+                onPrivateConnectionAccept(tokenBA, packet.pseudo());
+            } else if (!pendingPrivateConnections.contains(tokenAB)) { // implique qu'on avait pas encore demandé de connection
+                // Demande de connection
+                onPrivateConnectionRequest(tokenAB, packet.pseudo());
             }
         }
 
@@ -234,21 +238,23 @@ public class ServerChatOS {
          * @param other the pseudo of the other client.
          */
         private void onPrivateConnectionRequest(int token, String other) {
-            pendingPC.add(token);
+            pendingPrivateConnections.add(token);
             clients.get(other).queueMessage(makePrivateConnectionPacket(pseudo));
         }
         /**
          * If the packet represents a private connection positive response,
-         * remove the connection from the pending connection and add it into
+         * removes the connection from the pending connection and adds it into
          * the actual established connections.
-         * Also send a {@link Packet.PacketType#TOKEN} packet
-         * to the two client with the private connection identifier.
+         * Also sends a {@link Packet.PacketType#TOKEN} packet
+         * to the two clients with the private connection identifier.
+         * And finally change the token associated with
          *
          * @param token the identifier of the connection.
          * @param other the pseudo of the other client.
          */
         private void onPrivateConnectionAccept(int token, String other) {
-            pendingPC.remove(token);
+            tokenMap.put(new TokenKey(other, pseudo), token);
+            pendingPrivateConnections.remove(token);
             privateConnections.put(token, new PrivateConnection(token));
             queueMessage(makeTokenPacket(token, other));
             clients.get(other).queueMessage(makeTokenPacket(token, pseudo));
@@ -334,11 +340,7 @@ public class ServerChatOS {
             contexts.get(0).close();
             contexts.get(1).close();
             privateConnections.remove(token);
-            for (var e : tokenList.entrySet()) {
-                if (e.getValue() == token) {
-                    tokenList.remove(e.getKey());
-                }
-            }
+            tokenMap.values().removeIf(v -> v == token); // According to the doc, this removes also the key (https://docs.oracle.com/en/java/javase/15/docs/api/java.base/java/util/Map.html#values())
         }
 
         /**
@@ -366,10 +368,10 @@ public class ServerChatOS {
     private static final Logger logger = Logger.getLogger(ServerChatOS.class.getName());
 
     private final HashMap<Integer, PrivateConnection> privateConnections = new HashMap<>();
+    private final HashSet<Integer> pendingPrivateConnections = new HashSet<>();
     private final HashMap<SelectionKey, Context> changing = new HashMap<>();
     private final HashMap<String, ClientContext> clients = new HashMap<>();
-    private final HashMap<TokenKey, Integer> tokenList = new HashMap<>();
-    private final HashSet<Integer> pendingPC = new HashSet<>();
+    private final HashMap<TokenKey, Integer> tokenMap = new HashMap<>();
     private final ServerSocketChannel serverSocketChannel;
     private final Selector selector;
 
@@ -477,17 +479,22 @@ public class ServerChatOS {
     }
 
     /**
-     * Computes an integer that represent these 2 clients pseudo.
-     * This method always give the same value for the same input even if the
-     * two pseudo are swapped.
+     * Computes an integer that represent momentarily this two pseudos.
+     * The result can differ if the pseudos are in another order, in other words these two
+     * line aren't ensured to give the same values.
+     * <blockquote><pre>
+     *     var tokenAB = computeToken("A", "B");
+     *     var tokenBA = computeToken("B", "A"); </pre></blockquote>
+     * The only way to ensure that these two tokens are equals is to change
+     * the values contained in {@link #tokenMap}.
      *
      * @param c1 the first pseudo. Cannot be null.
      * @param c2 the second pseudo. Cannot be null.
-     * @return the token computed with the two pseudos.
+     * @return the token associated with the two pseudos.
      */
     public int computeToken(String c1, String c2) {
-        var key = c1.compareTo(c2) > 0 ? new TokenKey(c1, c2) : new TokenKey(c2, c1);
-        return tokenList.computeIfAbsent(key, tokenKey -> new Random().nextInt());
+        var key = new TokenKey(c1, c2);
+        return tokenMap.computeIfAbsent(key, tokenKey -> new Random().nextInt());
     }
 
     public static void main(String[] args) throws NumberFormatException, IOException {
