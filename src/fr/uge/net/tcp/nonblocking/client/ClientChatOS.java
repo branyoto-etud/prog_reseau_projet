@@ -218,14 +218,18 @@ public class ClientChatOS {
             requireNonNull(line);
             var tokens = line.substring(1).split(" ", 2);
             if (tokens.length != 2) return false;
-
-            if (privateConnections.containsKey(tokens[0])) {
-                privateConnections.get(tokens[0]).queueMessage(tokens[1]);
-            } else {
-                pendingConnection.put(tokens[0], tokens[1]);
-                queueMessage(makePrivateConnectionPacket(tokens[0]));
-            }
+            sendPrivateConnectionAux(tokens[0], tokens[1]);
             return true;
+        }
+        private void sendPrivateConnectionAux(String pseudo, String resource) {
+            if (privateConnections.containsKey(pseudo)) {
+                privateConnections.get(pseudo).queueMessage(resource);
+            } else if (!pendingConnection.containsKey(pseudo)) {
+                pendingConnection.put(pseudo, resource);
+                queueMessage(makePrivateConnectionPacket(pseudo));
+            } else {
+                System.out.println("wait for " + pseudo + "'s response before sending another request!");
+            }
         }
 
         /**
