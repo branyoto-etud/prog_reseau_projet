@@ -461,7 +461,7 @@ public final class ServerChatOS {
     /**
      * Closes the connection without crashing if the connection is already closed.
      * Removes the given pseudo from the {@link #clients}.
-     * And send a message to all connecter clients that this client has disconnected.
+     * And sends a message to all connecter clients that this client has disconnected.
      * If the pseudo is unknown use {@link ChatOSUtils#silentlyClose(Channel)} instead.
      * @param channel the channel to close. Cannot be null.
      * @param pseudo the pseudo to remove. Cannot be null.
