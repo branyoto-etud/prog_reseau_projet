@@ -11,6 +11,8 @@ import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -18,7 +20,7 @@ import java.util.logging.Logger;
 
 import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onConnectSuccess;
 import static fr.uge.net.tcp.nonblocking.display.ClientMessageDisplay.onMessageReceived;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketFactory.*;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.REFILL;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.silentlyClose;
@@ -399,6 +401,7 @@ public final class ClientChatOS {
     /**
      * Main method.
      * Only starts the client if there's 3 arguments.
+     * And if the last argument is a correct directory (i.e. exists and is a directory not a file).
      *
      * @param args the programs arguments.
      * @throws NumberFormatException if the second argument isn't an integer.
@@ -406,9 +409,13 @@ public final class ClientChatOS {
      */
     public static void main(String[] args) throws NumberFormatException, IOException {
         if (args.length!=3) usage();
+        else if (!Files.isDirectory(Paths.get(args[2]))) invalidDirectory(args[2]);
         else new ClientChatOS(new InetSocketAddress(args[0], parseInt(args[1])), args[2]).launch();
     }
 
+    private static void invalidDirectory(String dir) {
+        System.out.println(dir + " is not a directory or is not accessible.");
+    }
     private static void usage(){
         System.out.println("Usage : ClientChatOS hostname port repertory");
     }

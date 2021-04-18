@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static fr.uge.net.tcp.nonblocking.http.HTTPPacket.*;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.makeTokenPacket;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketFactory.makeTokenPacket;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.DONE;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.CONTENT_MAX_SIZE;
 import static java.lang.Integer.parseInt;

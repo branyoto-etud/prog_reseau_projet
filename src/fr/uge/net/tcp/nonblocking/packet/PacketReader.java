@@ -10,7 +10,7 @@ import java.util.function.Function;
 
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.moveData;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.REJECTED;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketFactory.*;
 import static fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure.CODE;
 import static fr.uge.net.tcp.nonblocking.packet.PacketReader.ProcessFailure.LENGTH;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
@@ -91,10 +91,10 @@ public class PacketReader implements Reader<Packet> {
         if (status != DONE) return status;
         return switch (type) {
             case ERR -> processError(bb);
-            case AUTH -> makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makeAuthenticationPacket);
+            case AUTH -> makePacketOnDone(bb, reader::process, Packet.PacketFactory::makeAuthenticationPacket);
             case GMSG -> makePacketOnDone(bb, this::processTwoString, s -> makeGeneralMessagePacket(element, s));
             case DMSG -> makePacketOnDone(bb, this::processTwoString, s -> makeDirectMessagePacket(element, s));
-            case PC -> makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makePrivateConnectionPacket);
+            case PC -> makePacketOnDone(bb, reader::process, Packet.PacketFactory::makePrivateConnectionPacket);
             case TOKEN -> processToken(bb);
         };
     }
@@ -137,7 +137,7 @@ public class PacketReader implements Reader<Packet> {
      *
      * @param bb buffer in write-mode.
      * @return the current status of the reader.
-     * @see Packet.PacketBuilder#makeErrorPacket(byte)
+     * @see Packet.PacketFactory#makeErrorPacket(byte)
      */
     private ProcessStatus processError(ByteBuffer bb) {
         if (errorCode == -1) {
@@ -149,7 +149,7 @@ public class PacketReader implements Reader<Packet> {
             }
         }
         if (errorCode == REJECTED.ordinal())
-            return makePacketOnDone(bb, reader::process, Packet.PacketBuilder::makeRejectedPacket);
+            return makePacketOnDone(bb, reader::process, Packet.PacketFactory::makeRejectedPacket);
         if ((packet = makeErrorPacket(errorCode)) != null) return DONE;
         failure = CODE;
         return ERROR;

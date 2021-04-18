@@ -19,7 +19,7 @@ import java.util.logging.Logger;
 import static fr.uge.net.tcp.nonblocking.display.ServerMessageDisplay.onPacketReceived;
 import static fr.uge.net.tcp.nonblocking.utils.ChatOSUtils.copyBuffer;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.ErrorCode.*;
-import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketBuilder.*;
+import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketFactory.*;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.AUTH;
 import static fr.uge.net.tcp.nonblocking.packet.Packet.PacketType.TOKEN;
 import static fr.uge.net.tcp.nonblocking.reader.Reader.ProcessStatus.*;
@@ -36,7 +36,7 @@ public final class ServerChatOS {
      * and replaced by respectively {@link ConnectionContext} and {@link PrivateConnection.PrivateConnectionContext}.
      */
     private final class ConnectionContext extends AbstractContext implements Context {
-        private final RejectReader rejectReader = new RejectReader();
+        private final RejectReader rejectReader = new RejectReader("???");
         private final PacketReader reader = new PacketReader();
         private boolean deprecated = false;
         private final SelectionKey key;
@@ -54,7 +54,7 @@ public final class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (rejectReader.process(bbIn, "???")) return;
+            if (rejectReader.process(bbIn) == REFILL) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
             if (status == ERROR) rejectReader.reject(reader.getFailure(), this, "???");
@@ -124,8 +124,8 @@ public final class ServerChatOS {
      * Handle the receiving and sending of GMSG, DMSG, PC and ERROR.
      */
     private final class ClientContext extends AbstractContext implements Context {
-        private final RejectReader rejectReader = new RejectReader();
         private final PacketReader reader = new PacketReader();
+        private final RejectReader rejectReader;
         private final String pseudo;
 
         private ClientContext(SelectionKey key, String pseudo){
@@ -133,6 +133,7 @@ public final class ServerChatOS {
             setConnected();
             this.pseudo = pseudo;
             changing.put(key, this);
+            rejectReader = new RejectReader(pseudo);
             queueMessage(makeAuthenticationPacket(pseudo));
         }
         /**
@@ -141,7 +142,7 @@ public final class ServerChatOS {
          */
         @Override
         public void processIn() {
-            if (rejectReader.process(bbIn, "pseudo")) return;
+            if (rejectReader.process(bbIn) == REFILL) return;
             var status = reader.process(bbIn);
             if (status == REFILL) return;
             if (status == ERROR) rejectReader.reject(reader.getFailure(), this, pseudo);
@@ -431,12 +432,13 @@ public final class ServerChatOS {
             if (key.isValid() && key.isWritable()) ctx.doWrite();
             if (key.isValid() && key.isReadable()) ctx.doRead();
         } catch (IOException e) {
-            logger.info("Connection closed with client due to IOException");
             if (ctx instanceof ClientContext cliCtx) {
+                logger.info("Connection closed with client due to IOException");
                 silentlyClose(key.channel(), cliCtx.pseudo);
             } else if (ctx instanceof PrivateConnection.PrivateConnectionContext pcCtx) {
                 pcCtx.closeBoth();
             } else if (ctx instanceof ConnectionContext conCtx) {
+                logger.info("Connection closed with client due to IOException");
                 conCtx.close();
             }
         }
