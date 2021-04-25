@@ -79,23 +79,25 @@ utilisateurs recevront un message indiquant votre déconnexion.
 
 Vous trouverez ci-dessous la hiérarchie des dossiers du projet :
 
+```
 projet_prog_reseau
- |-  assets                     # Groupement des "espace de travail" pour plusieurs utilisateurs
- |    |-  adam                  # Répertoire réservé à l'utilisateur "adam"
- |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8
- |    |-  bruce                 # Répertoire réservé à l'utilisateur "bruce"
- |    |    |-  1Mio.dat         # Fichier ayant une taille supérieure à la taille des buffer
- |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8
- |    |-  michel                # Répertoire réservé à l'utilisateur "michel"
- |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8
- |-  bin                        # Conteneur des executables
- |    |-  ClientChatOS.jar      # Executable du client
- |    |-  ServerChatOS.jar      # Executable du serveur
- |-  docs                       # Contient tout ce qui est en rapport avec la documentation
- |    |-  javadoc               # Dossier contenant la documentation compilée du projet
- |    |-  ChatOS - Manuel.pdf   # Manuel d'utilisation du projet
- |    |-  ChatOS - Rapport.pdf  # Rapport détaillé sur l'architecture du projet
- |    |-  Protocol.txt          # Protocole sur lequel est basé le système d'échange de paquets
- |-  out                        # Contient les fichiers produit par le projet
- |-  src                        # Contient les fichiers source du projet
- |-  README.md                  # Ce fichier
+ |-  assets                     # Groupement des "espace de travail" pour plusieurs utilisateurs  
+ |    |-  adam                  # Répertoire réservé à l'utilisateur "adam"  
+ |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8  
+ |    |-  bruce                 # Répertoire réservé à l'utilisateur "bruce"  
+ |    |    |-  1Mio.dat         # Fichier ayant une taille supérieure à la taille des buffer  
+ |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8  
+ |    |-  michel                # Répertoire réservé à l'utilisateur "michel"  
+ |    |    |-  hello.txt        # Fichier contenant un message basique en UTF-8  
+ |-  bin                        # Conteneur des executables  
+ |    |-  ClientChatOS.jar      # Executable du client  
+ |    |-  ServerChatOS.jar      # Executable du serveur  
+ |-  docs                       # Contient tout ce qui est en rapport avec la documentation  
+ |    |-  javadoc               # Dossier contenant la documentation compilée du projet  
+ |    |-  ChatOS - Manuel.pdf   # Manuel d'utilisation du projet  
+ |    |-  ChatOS - Rapport.pdf  # Rapport détaillé sur l'architecture du projet  
+ |    |-  Protocol.txt          # Protocole sur lequel est basé le système d'échange de paquets  
+ |-  out                        # Contient les fichiers produit par le projet  
+ |-  src                        # Contient les fichiers source du projet  
+ |-  README.md                  # Ce fichier  
+```
